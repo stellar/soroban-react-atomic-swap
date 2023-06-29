@@ -1,5 +1,6 @@
 import * as React from "react";
 import ReactDOM from "react-dom/client";
+<<<<<<< HEAD
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import {
   StellarWalletsKit,
@@ -13,10 +14,15 @@ import { SwapperA } from "./components/atomic-swap/swapper-A";
 import { SwapperB } from "./components/atomic-swap/swapper-B";
 
 import { FUTURENET_DETAILS } from "./helpers/network";
+=======
+
+import { AtomicSwap } from "./components/atomic-swap";
+>>>>>>> 262012b (init repo, config files, basic deps and app)
 
 import "@stellar/design-system/build/styles.min.css";
 import "./index.scss";
 
+<<<<<<< HEAD
 interface AppProps {
   hasHeader?: boolean;
 }
@@ -95,3 +101,7 @@ const App = (props: AppProps) => {
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 root.render(<App />);
+=======
+const root = ReactDOM.createRoot(document.getElementById("root")!);
+root.render(<AtomicSwap />);
+>>>>>>> 262012b (init repo, config files, basic deps and app)
