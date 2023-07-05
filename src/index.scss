@@ -9,3 +9,9 @@ body {
   height: 10vh;
   background-color: var(--color-gray-10);
 }
+
+.notification-container {
+  position: absolute;
+  top: 3rem;
+  right: 3rem;
+}
