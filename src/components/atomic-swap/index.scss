@@ -1,0 +1,38 @@
+.account-badge-row {
+  display: flex;
+  justify-content: flex-end;
+  height: 35px;
+
+  .account-badge {
+    width: 125px;
+
+    .Badge {
+      display: flex;
+      height: 28px;
+      justify-content: space-between;
+      padding: 0.25rem 0.5rem;
+
+      .badge-pubkey {
+        display: flex;
+        align-items: center;
+      }
+    }
+  }
+}
+
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+
+  .atomic-swap {
+    width: 375px;
+    height: 350px;
+    margin-top: 5rem;
+  }
+
+  .submit-row {
+    margin-top: 6rem;
+  }
+}
