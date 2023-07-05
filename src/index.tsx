@@ -9,7 +9,10 @@ import {
 
 import { AtomicSwap } from "components/atomic-swap";
 import { Exchange, ExchangeStepCount } from "./components/atomic-swap/exchange";
-import { SwapperA } from "./components/atomic-swap/swapper-A";
+import {
+  SwapperA,
+  SwapperAStepCount,
+} from "./components/atomic-swap/swapper-A";
 import { SwapperB } from "./components/atomic-swap/swapper-B";
 
 import { FUTURENET_DETAILS } from "./helpers/network";
@@ -34,7 +37,9 @@ const App = (props: AppProps) => {
   const [exchangeStepCount, setExchangeStepCount] = React.useState(
     1 as ExchangeStepCount,
   );
-  const [contractID, setContractID] = React.useState("");
+  const [swapperAStepCount, setSwapperAStepCount] = React.useState(
+    1 as SwapperAStepCount,
+  );
 
   // Setup swc, user will set the desired wallet on connect
   const [SWKKit] = React.useState(
@@ -61,10 +66,8 @@ const App = (props: AppProps) => {
           index: true,
           element: (
             <Exchange
-              contractID={contractID}
               pubKey={activePubKey}
               selectedNetwork={selectedNetwork.network}
-              setContractID={setContractID}
               setError={setError}
               setPubKey={setActivePubKey}
               setStepCount={setExchangeStepCount}
@@ -75,7 +78,17 @@ const App = (props: AppProps) => {
         },
         {
           path: "swapper-a/",
-          element: <SwapperA />,
+          element: (
+            <SwapperA
+              pubKey={activePubKey}
+              selectedNetwork={selectedNetwork.network}
+              setError={setError}
+              setPubKey={setActivePubKey}
+              setStepCount={setSwapperAStepCount}
+              stepCount={swapperAStepCount}
+              swkKit={SWKKit}
+            />
+          ),
         },
         {
           path: "swapper-b/",

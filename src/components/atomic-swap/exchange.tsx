@@ -7,15 +7,14 @@ import {
   StellarWalletsKit,
 } from "stellar-wallets-kit";
 
+import { bc, ChannelMessageType } from "helpers/channel";
 import { ERRORS } from "../../helpers/error";
 
 export type ExchangeStepCount = 1 | 2;
 
 interface ExchangeProps {
-  contractID: string;
   pubKey: string | null;
   selectedNetwork: string;
-  setContractID: (id: string) => void;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
   setStepCount: (step: ExchangeStepCount) => void;
@@ -24,6 +23,7 @@ interface ExchangeProps {
 }
 
 export const Exchange = (props: ExchangeProps) => {
+  const [contractID, setContractID] = React.useState("");
   const connect = async () => {
     props.setError(null);
 
@@ -58,7 +58,21 @@ export const Exchange = (props: ExchangeProps) => {
     switch (step) {
       case 2: {
         const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-          props.setContractID(event.target.value);
+          setContractID(event.target.value);
+        };
+        const goToSwapperA = () => {
+          const newWindow = window.open(
+            `${window.location.href}swapper-a`,
+            "_blank",
+          );
+          if (newWindow) {
+            newWindow.onload = () => {
+              bc.postMessage({
+                type: ChannelMessageType.ContractID,
+                data: contractID,
+              });
+            };
+          }
         };
         return (
           <>
@@ -69,7 +83,7 @@ export const Exchange = (props: ExchangeProps) => {
               fieldSize="md"
               id="contract-id"
               label="Contract ID"
-              value={props.contractID}
+              value={contractID}
               onChange={handleChange}
             />
             <div className="submit-row">
@@ -77,9 +91,9 @@ export const Exchange = (props: ExchangeProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={console.log} // TODO
+                onClick={goToSwapperA}
               >
-                Next
+                Go to Swapper A
               </Button>
             </div>
           </>
