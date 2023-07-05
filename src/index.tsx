@@ -8,7 +8,7 @@ import {
 } from "stellar-wallets-kit";
 
 import { AtomicSwap } from "components/atomic-swap";
-import { Exchange } from "./components/atomic-swap/exchange";
+import { Exchange, ExchangeStepCount } from "./components/atomic-swap/exchange";
 import { SwapperA } from "./components/atomic-swap/swapper-A";
 import { SwapperB } from "./components/atomic-swap/swapper-B";
 
@@ -31,6 +31,10 @@ const App = (props: AppProps) => {
   // Initial state, empty states for token/transaction details
   const [activePubKey, setActivePubKey] = React.useState(null as string | null);
   const [error, setError] = React.useState(null as string | null);
+  const [exchangeStepCount, setExchangeStepCount] = React.useState(
+    1 as ExchangeStepCount,
+  );
+  const [contractID, setContractID] = React.useState("");
 
   // Setup swc, user will set the desired wallet on connect
   const [SWKKit] = React.useState(
@@ -57,11 +61,15 @@ const App = (props: AppProps) => {
           index: true,
           element: (
             <Exchange
-              selectedNetwork={selectedNetwork.network}
-              swkKit={SWKKit}
+              contractID={contractID}
               pubKey={activePubKey}
-              setPubKey={setActivePubKey}
+              selectedNetwork={selectedNetwork.network}
+              setContractID={setContractID}
               setError={setError}
+              setPubKey={setActivePubKey}
+              setStepCount={setExchangeStepCount}
+              stepCount={exchangeStepCount}
+              swkKit={SWKKit}
             />
           ),
         },

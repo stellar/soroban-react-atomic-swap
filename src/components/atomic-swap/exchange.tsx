@@ -9,20 +9,21 @@ import {
 
 import { ERRORS } from "../../helpers/error";
 
-type StepCount = 1 | 2;
+export type ExchangeStepCount = 1 | 2;
 
 interface ExchangeProps {
-  selectedNetwork: string;
-  swkKit: StellarWalletsKit;
+  contractID: string;
   pubKey: string | null;
-  setPubKey: (pubKey: string) => void;
+  selectedNetwork: string;
+  setContractID: (id: string) => void;
   setError: (error: string | null) => void;
+  setPubKey: (pubKey: string) => void;
+  setStepCount: (step: ExchangeStepCount) => void;
+  stepCount: ExchangeStepCount;
+  swkKit: StellarWalletsKit;
 }
 
 export const Exchange = (props: ExchangeProps) => {
-  const [stepCount, setStepCount] = React.useState(1 as StepCount);
-  const [contractID, setContractID] = React.useState("");
-
   const connect = async () => {
     props.setError(null);
 
@@ -49,15 +50,15 @@ export const Exchange = (props: ExchangeProps) => {
         },
       });
     } else {
-      setStepCount((stepCount + 1) as StepCount);
+      props.setStepCount((props.stepCount + 1) as ExchangeStepCount);
     }
   };
 
-  function renderStep(step: StepCount) {
+  function renderStep(step: ExchangeStepCount) {
     switch (step) {
       case 2: {
         const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-          setContractID(event.target.value);
+          props.setContractID(event.target.value);
         };
         return (
           <>
@@ -68,7 +69,7 @@ export const Exchange = (props: ExchangeProps) => {
               fieldSize="md"
               id="contract-id"
               label="Contract ID"
-              value={contractID}
+              value={props.contractID}
               onChange={handleChange}
             />
             <div className="submit-row">
@@ -86,7 +87,7 @@ export const Exchange = (props: ExchangeProps) => {
       }
       case 1:
       default: {
-        const text = props.pubKey ? "Next" : "Connect Freighter";
+        const text = props.pubKey ? "Next" : "Connect Wallet";
         return (
           <>
             <Heading as="h1" size="sm">
@@ -117,5 +118,5 @@ export const Exchange = (props: ExchangeProps) => {
     }
   }
 
-  return renderStep(stepCount);
+  return renderStep(props.stepCount);
 };
