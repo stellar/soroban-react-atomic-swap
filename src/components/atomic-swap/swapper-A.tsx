@@ -87,7 +87,7 @@ export const SwapperA = (props: SwapperAProps) => {
       case 4: {
         const signWithWallet = async () => {
           const server = getServer(props.networkDetails);
-          // Gets a transaction builder and use it to add a "mint" operation and build the corresponding XDR
+          // Gets a transaction builder and use it to add a "swap" operation and build the corresponding XDR
           const txBuilder = await getTxBuilder(
             props.pubKey!,
             BASE_FEE,
