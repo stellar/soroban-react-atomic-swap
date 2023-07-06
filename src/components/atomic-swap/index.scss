@@ -28,8 +28,53 @@
 
   .atomic-swap {
     width: 375px;
-    height: 350px;
+    min-height: 350px;
+    height: fit-content;
     margin-top: 5rem;
+
+    .tx-details {
+      display: flex;
+      flex-direction: column;
+
+      .tx-detail-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.025rem;
+
+        &.address-a {
+          margin-top: 1rem;
+        }
+
+        &.address-b {
+          margin-top: 1rem;
+        }
+
+        .detail-header {
+          color: var(--color-gray-60);
+        }
+
+        .detail-value {
+          font-weight: var(--font-weight-regular);
+          font-family: var(--font-family-monospace);
+        }
+
+        .address-b-identicon {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+
+          .identicon {
+            width: 20px;
+            height: 20px;
+            margin-left: 8px;
+          }
+        }
+
+        p {
+          margin-bottom: 0.025rem;
+        }
+      }
+    }
   }
 
   .submit-row {

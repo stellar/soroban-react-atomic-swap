@@ -1,5 +1,6 @@
 import React from "react";
 import { Button, Heading, Select } from "@stellar/design-system";
+import { TransactionBuilder } from "soroban-client";
 import {
   WalletNetwork,
   WalletType,
@@ -8,7 +9,8 @@ import {
 } from "stellar-wallets-kit";
 
 import { bc, ChannelMessageType } from "helpers/channel";
-import { NetworkDetails } from "helpers/network";
+import { getServer } from "helpers/soroban";
+import { NetworkDetails, signTx } from "helpers/network";
 import { ERRORS } from "../../helpers/error";
 
 export type SwapperBStepCount = 1 | 2 | 3;
@@ -67,10 +69,89 @@ export const SwapperB = (props: SwapperBProps) => {
     }
   };
 
-  console.log(signedTx);
-
   function renderStep(stepCount: SwapperBStepCount) {
     switch (stepCount) {
+      case 2: {
+        const signWithWallet = async () => {
+          try {
+            const server = getServer(props.networkDetails);
+            const tx = TransactionBuilder.fromXDR(
+              signedTx,
+              props.networkDetails.networkPassphrase,
+            );
+            console.log(tx);
+            const preparedTransaction = await server.prepareTransaction(
+              tx,
+              props.networkDetails.networkPassphrase,
+            );
+
+            // TODO: this should sign the contract auth, not the tx
+            const signed = await signTx(
+              preparedTransaction.toXDR(),
+              props.pubKey!,
+              props.swkKit,
+            );
+            bc.postMessage({
+              type: ChannelMessageType.SignedTx,
+              data: signed,
+            });
+          } catch (e) {
+            console.log("e: ", e);
+            props.setError(ERRORS.UNABLE_TO_SIGN_TX);
+          }
+        };
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Confirm Swap Transaction
+            </Heading>
+            {/* <div className="tx-details">
+              <div className="tx-detail-item">
+                <p className="detail-header">Network</p>
+                <p className="detail-value">{props.networkDetails.network}</p>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Address A</p>
+                <div className="address-a-identicon">
+                  <Profile isShort publicAddress={tokenAAddress} size="sm" />
+                </div>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Amount A</p>
+                <p className="detail-value">{amountA}</p>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Min Amount A</p>
+                <p className="detail-value">{minAmountA}</p>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Address B</p>
+                <div className="address-b-identicon">
+                  <Profile isShort publicAddress={tokenBAddress} size="sm" />
+                </div>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Amount B</p>
+                <p className="detail-value">{amountB}</p>
+              </div>
+              <div className="tx-detail-item">
+                <p className="detail-header">Min Amount B</p>
+                <p className="detail-value">{minAmountB}</p>
+              </div>
+            </div> */}
+            <div className="submit-row">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={signWithWallet}
+              >
+                Sign with Wallet
+              </Button>
+            </div>
+          </>
+        );
+      }
       case 1:
       default: {
         const text = props.pubKey ? "Next" : "Connect Wallet";

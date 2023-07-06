@@ -40,6 +40,7 @@ export const SwapperA = (props: SwapperAProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
+
   const connect = async () => {
     props.setError(null);
 
@@ -120,7 +121,7 @@ export const SwapperA = (props: SwapperAProps) => {
           );
 
           try {
-            // Signs XDR representing the "swap" transaction
+            // TODO: this should sign the contract auth, not the tx
             const signedTx = await signTx(xdr, props.pubKey!, props.swkKit);
             const newWindow = window.open(
               `${window.location.href}swapper-b`,
@@ -149,7 +150,7 @@ export const SwapperA = (props: SwapperAProps) => {
                 <p className="detail-header">Network</p>
                 <p className="detail-value">{props.networkDetails.network}</p>
               </div>
-              <div className="tx-detail-item">
+              <div className="tx-detail-item address-a">
                 <p className="detail-header">Address A</p>
                 <div className="address-a-identicon">
                   <Profile isShort publicAddress={tokenAAddress} size="sm" />
@@ -163,7 +164,7 @@ export const SwapperA = (props: SwapperAProps) => {
                 <p className="detail-header">Min Amount A</p>
                 <p className="detail-value">{minAmountA}</p>
               </div>
-              <div className="tx-detail-item">
+              <div className="tx-detail-item address-b">
                 <p className="detail-header">Address B</p>
                 <div className="address-b-identicon">
                   <Profile isShort publicAddress={tokenBAddress} size="sm" />
@@ -227,21 +228,21 @@ export const SwapperA = (props: SwapperAProps) => {
               fieldSize="md"
               id="token-b-id"
               label="Token ID"
-              value={tokenAAddress}
+              value={tokenBAddress}
               onChange={handleTokenBChange}
             />
             <Input
               fieldSize="md"
               id="token-b-amount"
               label="Amount"
-              value={amountA}
+              value={amountB}
               onChange={handleTokenBAmountChange}
             />
             <Input
               fieldSize="md"
               id="token-b-min-amount"
               label="Min Amount"
-              value={minAmountA}
+              value={minAmountB}
               onChange={handleTokenBMinAmountChange}
             />
             <div className="submit-row">
