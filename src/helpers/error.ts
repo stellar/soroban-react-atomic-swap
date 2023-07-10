@@ -5,4 +5,5 @@ export const ERRORS = {
   UNABLE_TO_SUBMIT_TX: "Unable to submit transaction",
   UNABLE_TO_SIGN_TX: "Unable to sign transaction",
   WALLET_CONNECTION_REJECTED: "Wallet connection rejected",
+  BAD_ENVELOPE: "Unable to unpack envelope",
 };

@@ -8,15 +8,9 @@ import {
 } from "stellar-wallets-kit";
 
 import { AtomicSwap } from "components/atomic-swap";
-import { Exchange, ExchangeStepCount } from "./components/atomic-swap/exchange";
-import {
-  SwapperA,
-  SwapperAStepCount,
-} from "./components/atomic-swap/swapper-A";
-import {
-  SwapperB,
-  SwapperBStepCount,
-} from "./components/atomic-swap/swapper-B";
+import { Exchange } from "./components/atomic-swap/exchange";
+import { SwapperA } from "./components/atomic-swap/swapper-A";
+import { SwapperB } from "./components/atomic-swap/swapper-B";
 
 import { FUTURENET_DETAILS } from "./helpers/network";
 
@@ -37,15 +31,6 @@ const App = (props: AppProps) => {
   // Initial state, empty states for token/transaction details
   const [activePubKey, setActivePubKey] = React.useState(null as string | null);
   const [error, setError] = React.useState(null as string | null);
-  const [exchangeStepCount, setExchangeStepCount] = React.useState(
-    1 as ExchangeStepCount,
-  );
-  const [swapperAStepCount, setSwapperAStepCount] = React.useState(
-    1 as SwapperAStepCount,
-  );
-  const [swapperBStepCount, setSwapperBStepCount] = React.useState(
-    1 as SwapperBStepCount,
-  );
 
   // Setup swc, user will set the desired wallet on connect
   const [SWKKit] = React.useState(
@@ -72,12 +57,9 @@ const App = (props: AppProps) => {
           index: true,
           element: (
             <Exchange
-              pubKey={activePubKey}
-              selectedNetwork={selectedNetwork.network}
+              networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
-              setStepCount={setExchangeStepCount}
-              stepCount={exchangeStepCount}
               swkKit={SWKKit}
             />
           ),
@@ -86,12 +68,9 @@ const App = (props: AppProps) => {
           path: "swapper-a/",
           element: (
             <SwapperA
-              pubKey={activePubKey}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
-              setStepCount={setSwapperAStepCount}
-              stepCount={swapperAStepCount}
               swkKit={SWKKit}
             />
           ),
@@ -100,12 +79,9 @@ const App = (props: AppProps) => {
           path: "swapper-b/",
           element: (
             <SwapperB
-              pubKey={activePubKey}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
-              setStepCount={setSwapperBStepCount}
-              stepCount={swapperBStepCount}
               swkKit={SWKKit}
             />
           ),
