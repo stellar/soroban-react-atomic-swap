@@ -6,6 +6,7 @@ import {
   Input,
   Profile,
 } from "@stellar/design-system";
+import { Keypair } from "soroban-client";
 import BigNumber from "bignumber.js";
 import {
   WalletNetwork,
@@ -15,23 +16,27 @@ import {
 } from "stellar-wallets-kit";
 
 import { bc, ChannelMessageType } from "helpers/channel";
-import { getServer, getTxBuilder, BASE_FEE, buildSwap } from "helpers/soroban";
-import { NetworkDetails, signTx } from "helpers/network";
+import {
+  getServer,
+  getTxBuilder,
+  BASE_FEE,
+  buildSwap,
+  signContractAuth,
+} from "helpers/soroban";
+import { NetworkDetails } from "helpers/network";
 import { ERRORS } from "../../helpers/error";
 
-export type SwapperAStepCount = 1 | 2 | 3 | 4;
+type StepCount = 1 | 2 | 3 | 4;
 
 interface SwapperAProps {
-  pubKey: string | null;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
-  setStepCount: (step: SwapperAStepCount) => void;
-  stepCount: SwapperAStepCount;
   swkKit: StellarWalletsKit;
 }
 
 export const SwapperA = (props: SwapperAProps) => {
+  const [pubKey, setPubKey] = React.useState("");
   const [contractID, setContractID] = React.useState("");
   const [tokenAAddress, setTokenAAddress] = React.useState("");
   const [amountA, setAmountA] = React.useState("");
@@ -40,35 +45,35 @@ export const SwapperA = (props: SwapperAProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
+  const [stepCount, setStepCount] = React.useState(1 as StepCount);
 
   const connect = async () => {
     props.setError(null);
 
-    // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    if (!props.pubKey) {
-      await props.swkKit.openModal({
-        allowedWallets: [
-          WalletType.ALBEDO,
-          WalletType.FREIGHTER,
-          WalletType.XBULL,
-        ],
-        onWalletSelected: async (option: ISupportedWallet) => {
-          try {
-            // Set selected wallet,  network, and public key
-            props.swkKit.setWallet(option.type);
-            const publicKey = await props.swkKit.getPublicKey();
+    await props.swkKit.openModal({
+      allowedWallets: [
+        WalletType.ALBEDO,
+        WalletType.FREIGHTER,
+        WalletType.XBULL,
+      ],
+      onWalletSelected: async (option: ISupportedWallet) => {
+        try {
+          // Set selected wallet,  network, and public key
+          props.swkKit.setWallet(option.type);
+          const publicKey = await props.swkKit.getPublicKey();
 
-            await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
-            props.setPubKey(publicKey);
-          } catch (error) {
-            console.log(error);
-            props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
-          }
-        },
-      });
-    } else {
-      props.setStepCount((props.stepCount + 1) as SwapperAStepCount);
-    }
+          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+
+          // also set pubkey in parent to display active profile
+          props.setPubKey(publicKey);
+          setPubKey(publicKey);
+          setStepCount((stepCount + 1) as StepCount);
+        } catch (error) {
+          console.log(error);
+          props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
+        }
+      },
+    });
   };
 
   bc.onmessage = (messageEvent) => {
@@ -83,14 +88,14 @@ export const SwapperA = (props: SwapperAProps) => {
     }
   };
 
-  function renderStep(step: SwapperAStepCount) {
+  function renderStep(step: StepCount) {
     switch (step) {
       case 4: {
         const signWithWallet = async () => {
           const server = getServer(props.networkDetails);
           // Gets a transaction builder and use it to add a "swap" operation and build the corresponding XDR
           const txBuilder = await getTxBuilder(
-            props.pubKey!,
+            pubKey,
             BASE_FEE,
             server,
             props.networkDetails.networkPassphrase,
@@ -108,11 +113,11 @@ export const SwapperA = (props: SwapperAProps) => {
             minAmount: new BigNumber(minAmountB).toNumber(),
           };
 
-          const xdr = await buildSwap(
+          const swapTx = await buildSwap(
             contractID,
             tokenA,
             tokenB,
-            props.pubKey!,
+            pubKey,
             swapperBAddress,
             "", // memo will be set after rebuild on exchange submit
             server,
@@ -121,17 +126,26 @@ export const SwapperA = (props: SwapperAProps) => {
           );
 
           try {
-            // TODO: this should sign the contract auth, not the tx
-            const signedTx = await signTx(xdr, props.pubKey!, props.swkKit);
+            const keypairA = Keypair.fromPublicKey(pubKey);
+            const signedTx = await signContractAuth(
+              contractID,
+              keypairA,
+              swapTx,
+              server,
+              props.networkDetails.networkPassphrase,
+            );
             const newWindow = window.open(
-              `${window.location.href}swapper-b`,
+              `${window.location.origin}/swapper-b`,
               "_blank",
             );
             if (newWindow) {
               newWindow.onload = () => {
                 bc.postMessage({
                   type: ChannelMessageType.SignedTx,
-                  data: signedTx,
+                  data: {
+                    contractID,
+                    signedTx: signedTx.toEnvelope().toXDR("base64"),
+                  },
                 });
               };
             }
@@ -250,9 +264,7 @@ export const SwapperA = (props: SwapperAProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={() =>
-                  props.setStepCount((props.stepCount + 1) as SwapperAStepCount)
-                }
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
               >
                 Next
               </Button>
@@ -306,9 +318,7 @@ export const SwapperA = (props: SwapperAProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={() =>
-                  props.setStepCount((props.stepCount + 1) as SwapperAStepCount)
-                }
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
               >
                 Next
               </Button>
@@ -318,7 +328,6 @@ export const SwapperA = (props: SwapperAProps) => {
       }
       case 1:
       default: {
-        const text = props.pubKey ? "Next" : "Connect Wallet";
         return (
           <>
             <Heading as="h1" size="sm">
@@ -340,7 +349,7 @@ export const SwapperA = (props: SwapperAProps) => {
                 isFullWidth
                 onClick={connect}
               >
-                {text}
+                Connect Wallet
               </Button>
             </div>
           </>
@@ -349,5 +358,5 @@ export const SwapperA = (props: SwapperAProps) => {
     }
   }
 
-  return renderStep(props.stepCount);
+  return renderStep(stepCount);
 };

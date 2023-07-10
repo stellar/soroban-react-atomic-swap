@@ -1,18 +1,41 @@
 import {
+  Account,
   Address,
   Contract,
-  Server,
-  TransactionBuilder,
-  TimeoutInfinite,
-  Memo,
-  xdr,
-  Transaction,
-  Operation,
   Keypair,
+  Memo,
+  MemoType,
+  Operation,
+  Server,
+  StrKey,
+  SorobanRpc,
+  TimeoutInfinite,
+  Transaction,
+  TransactionBuilder,
+  xdr,
 } from "soroban-client";
 import BigNumber from "bignumber.js";
 
 import { NetworkDetails } from "./network";
+import { I128 } from "./xdr";
+import { ERRORS } from "./error";
+
+export const SendTxStatus: {
+  [index: string]: SorobanRpc.SendTransactionStatus;
+} = {
+  Pending: "PENDING",
+  Duplicate: "DUPLICATE",
+  Retry: "TRY_AGAIN_LATER",
+  Error: "ERROR",
+};
+
+export const GetTxStatus: {
+  [index: string]: SorobanRpc.GetTransactionStatus;
+} = {
+  Success: "SUCCESS",
+  NotFound: "NOT_FOUND",
+  Failed: "FAILED",
+};
 
 export const BASE_FEE = "100";
 
@@ -119,11 +142,67 @@ const numberToU64 = (value: string) => {
   );
 };
 
+// XDR -> Number
+export const decodeu32 = (xdrStr: string) => {
+  const val = xdr.ScVal.fromXDR(xdrStr, "base64");
+  return val.u32();
+};
+
+// XDR -> String
+export const decodeBytesN = (xdrStr: string) => {
+  const val = xdr.ScVal.fromXDR(xdrStr, "base64");
+  return val.bytes().toString();
+};
+
+export const decoders = {
+  bytesN: decodeBytesN,
+  u32: decodeu32,
+};
+
+export const valueToI128String = (value: xdr.ScVal) =>
+  new I128([
+    BigInt(value.i128().lo().low),
+    BigInt(value.i128().lo().high),
+    BigInt(value.i128().hi().low),
+    BigInt(value.i128().hi().high),
+  ]).toString();
+
 // Get a server configfured for a specific network
 export const getServer = (networkDetails: NetworkDetails) =>
   new Server(RPC_URLS[networkDetails.network], {
     allowHttp: networkDetails.networkUrl.startsWith("http://"),
   });
+
+//  Can be used whenever we need to perform a "read-only" operation
+//  Used in getTokenSymbol, getTokenName, and getTokenDecimals
+export const simulateTx = async <ArgType>(
+  tx: Transaction<Memo<MemoType>, Operation[]>,
+  decoder: (xdr: string) => ArgType,
+  server: Server,
+) => {
+  const { results } = await server.simulateTransaction(tx);
+  if (!results || results.length !== 1) {
+    throw new Error("Invalid response from simulateTransaction");
+  }
+  const result = results[0];
+  return decoder(result.xdr);
+};
+
+// Get the tokens decimals, decoded as a number
+export const getTokenDecimals = async (
+  tokenId: string,
+  txBuilder: TransactionBuilder,
+  server: Server,
+) => {
+  const contract = new Contract(tokenId);
+  const tx = txBuilder
+    .addOperation(contract.call("decimals"))
+    .setTimeout(TimeoutInfinite)
+    .build();
+
+  const result = await simulateTx<number>(tx, decoders.u32, server);
+  return result;
+};
 
 // Get a TransactionBuilder configured with our public key
 export const getTxBuilder = async (
@@ -184,14 +263,29 @@ export const buildSwap = async (
     tx.addMemo(Memo.text(memo));
   }
 
-  // TODO: add auth stuff after p10 lands
-
   const preparedTransaction = await server.prepareTransaction(
     tx.build(),
     networkPassphrase,
   );
 
-  return preparedTransaction.toXDR();
+  return preparedTransaction as Transaction<Memo<MemoType>, Operation[]>;
+};
+
+// Get the tokens symbol, decoded as a string
+export const getTokenSymbol = async (
+  tokenId: string,
+  txBuilder: TransactionBuilder,
+  server: Server,
+) => {
+  const contract = new Contract(tokenId);
+
+  const tx = txBuilder
+    .addOperation(contract.call("symbol"))
+    .setTimeout(TimeoutInfinite)
+    .build();
+
+  const result = await simulateTx<string>(tx, decoders.bytesN, server);
+  return result;
 };
 
 export const buildContractAuth = async (
@@ -309,5 +403,101 @@ export const signContractAuth = async (
     }),
   );
 
-  return authDecoratedHostFunctions;
+  // rebuild tx and attach signed auth
+  const source = new Account(tx.source, `${parseInt(tx.sequence, 10) - 1}`);
+  const txnBuilder = new TransactionBuilder(source, {
+    fee: tx.fee,
+    networkPassphrase,
+    timebounds: tx.timeBounds,
+    ledgerbounds: tx.ledgerBounds,
+    minAccountSequence: tx.minAccountSequence,
+    minAccountSequenceAge: tx.minAccountSequenceAge,
+    minAccountSequenceLedgerGap: tx.minAccountSequenceLedgerGap,
+  });
+
+  txnBuilder.addOperation(
+    Operation.invokeHostFunctions({
+      functions: authDecoratedHostFunctions,
+    }),
+  );
+
+  // apply the pre-built Soroban Tx Data from simulation onto the Tx
+  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
+    simulation.transactionData,
+    "base64",
+  );
+  txnBuilder.setSorobanData(sorobanTxData);
+
+  return txnBuilder.build();
+};
+
+export const getArgsFromEnvelope = (
+  envelopeXdr: string,
+  networkPassphrase: string,
+) => {
+  const txEnvelope = TransactionBuilder.fromXDR(
+    envelopeXdr,
+    networkPassphrase,
+  ) as Transaction<Memo<MemoType>, Operation.InvokeHostFunction[]>;
+
+  // only one op per tx in Soroban
+  const op = txEnvelope.operations[0].functions[0];
+
+  if (!op) {
+    throw new Error(ERRORS.BAD_ENVELOPE);
+  }
+
+  const args = op.args().value() as xdr.ScVal[];
+
+  return {
+    addressA: StrKey.encodeEd25519PublicKey(
+      args[2].address().accountId().ed25519(),
+    ),
+    addressB: StrKey.encodeEd25519PublicKey(
+      args[3].address().accountId().ed25519(),
+    ),
+    tokenA: args[4].address().contractId().toString("hex"),
+    tokenB: args[5].address().contractId().toString("hex"),
+    amountA: valueToI128String(args[6]),
+    minBForA: valueToI128String(args[7]),
+    amountB: valueToI128String(args[8]),
+    minAForB: valueToI128String(args[9]),
+  };
+};
+
+// Build and submits a transaction to the Soroban RPC
+// Polls for non-pending state, returns result after status is updated
+export const submitTx = async (
+  signedXDR: string,
+  networkPassphrase: string,
+  server: Server,
+) => {
+  const tx = TransactionBuilder.fromXDR(signedXDR, networkPassphrase);
+
+  const sendResponse = await server.sendTransaction(tx);
+
+  if (sendResponse.errorResultXdr) {
+    throw new Error(ERRORS.UNABLE_TO_SUBMIT_TX);
+  }
+
+  if (sendResponse.status === SendTxStatus.Pending) {
+    let txResponse = await server.getTransaction(sendResponse.hash);
+
+    // Poll this until the status is not "NOT_FOUND"
+    while (txResponse.status === GetTxStatus.NotFound) {
+      // See if the transaction is complete
+      // eslint-disable-next-line no-await-in-loop
+      txResponse = await server.getTransaction(sendResponse.hash);
+      // Wait a second
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return txResponse.resultXdr!;
+    // eslint-disable-next-line no-else-return
+  } else {
+    throw new Error(
+      `Unabled to submit transaction, status: ${sendResponse.status}`,
+    );
+  }
 };

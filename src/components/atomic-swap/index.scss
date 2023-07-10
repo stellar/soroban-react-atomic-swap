@@ -75,6 +75,43 @@
         }
       }
     }
+
+    .signed-xdr {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1rem;
+
+      .Card {
+        .xdr-copy {
+          position: absolute;
+          right: 0;
+          top: 0;
+          padding: 1rem;
+          width: auto;
+        }
+      }
+
+      .detail-header {
+        color: var(--color-gray-60);
+      }
+
+      .xdr-copy {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+
+      .xdr-data {
+        display: -webkit-box;
+        width: 100%;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 5;
+        word-wrap: break-word;
+      }
+    }
   }
 
   .submit-row {
