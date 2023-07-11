@@ -248,8 +248,8 @@ export const buildSwap = async (
         ...[
           accountToScVal(swapperAPubKey),
           accountToScVal(swapperBPubKey),
-          contractA.address().toScVal(),
-          contractB.address().toScVal(),
+          accountToScVal(contractA.contractId()),
+          accountToScVal(contractB.contractId()),
           numberToI128(tokenA.amount),
           numberToI128(tokenA.minAmount),
           numberToI128(tokenB.amount),
@@ -325,11 +325,10 @@ export const buildContractAuth = async (
           );
 
           // Fetch the current contract nonce
-          server.getLedgerEntries([key]).then((response) => {
-            if (response.entries && response.entries.length) {
-              const ledgerEntry = response.entries[0];
+          server.getLedgerEntry(key).then((response) => {
+            if (response.xdr) {
               const parsed = xdr.LedgerEntryData.fromXDR(
-                ledgerEntry.xdr,
+                response.xdr,
                 "base64",
               );
               nonce = parsed.data().dataValue().toString();
@@ -389,8 +388,7 @@ export const signContractAuth = async (
     .operations[0] as Operation.InvokeHostFunction;
 
   const authDecoratedHostFunctions = await Promise.all(
-    simulation.results.map(async (functionSimulationResult, i) => {
-      const hostFn = rawInvokeHostFunctionOp.functions[i];
+    (simulation.results || []).map(async (functionSimulationResult) => {
       const signedAuth = await buildContractAuth(
         functionSimulationResult.auth,
         signerKeypair,
@@ -398,8 +396,7 @@ export const signContractAuth = async (
         contractID,
         server,
       );
-      hostFn.auth(signedAuth);
-      return hostFn;
+      return signedAuth;
     }),
   );
 
@@ -416,17 +413,11 @@ export const signContractAuth = async (
   });
 
   txnBuilder.addOperation(
-    Operation.invokeHostFunctions({
-      functions: authDecoratedHostFunctions,
+    Operation.invokeHostFunction({
+      ...rawInvokeHostFunctionOp,
+      auth: authDecoratedHostFunctions.flat(),
     }),
   );
-
-  // apply the pre-built Soroban Tx Data from simulation onto the Tx
-  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-    simulation.transactionData,
-    "base64",
-  );
-  txnBuilder.setSorobanData(sorobanTxData);
 
   return txnBuilder.build();
 };
@@ -441,13 +432,13 @@ export const getArgsFromEnvelope = (
   ) as Transaction<Memo<MemoType>, Operation.InvokeHostFunction[]>;
 
   // only one op per tx in Soroban
-  const op = txEnvelope.operations[0].functions[0];
+  const op = txEnvelope.operations[0].function;
 
   if (!op) {
     throw new Error(ERRORS.BAD_ENVELOPE);
   }
 
-  const args = op.args().value() as xdr.ScVal[];
+  const args = op.invokeArgs();
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
