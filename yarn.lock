@@ -6946,7 +6946,7 @@ sonic-boom@^2.2.1:
   dependencies:
     atomic-sleep "^1.0.0"
 
-soroban-client@^0.9.0:
+soroban-client@^0.8.1:
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/soroban-client/-/soroban-client-0.8.1.tgz#c9dba7f96b29d5ee07b01cf0f5455ad6ba891757"
   integrity sha512-F+3K+hHlpXbSSdBMjvTlkim1tb2aMlg4OT+71r1ILk8T+bMFHXlZShettJg2VMQ402WGalBNN4Q9oSeoHsPVFQ==

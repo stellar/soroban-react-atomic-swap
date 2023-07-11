@@ -1,5 +1,14 @@
 import React, { ChangeEvent } from "react";
-import { Button, Heading, Select, Input } from "@stellar/design-system";
+import {
+  Button,
+  Card,
+  Icon,
+  IconButton,
+  Loader,
+  Heading,
+  Select,
+  Input,
+} from "@stellar/design-system";
 import {
   WalletNetwork,
   WalletType,
@@ -8,61 +17,160 @@ import {
 } from "stellar-wallets-kit";
 
 import { bc, ChannelMessageType } from "helpers/channel";
+import { copyContent } from "helpers/dom";
+import { NetworkDetails } from "helpers/network";
+import { getServer, submitTx } from "helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
-export type ExchangeStepCount = 1 | 2;
+type StepCount = 1 | 2 | 3 | 4;
 
 interface ExchangeProps {
-  pubKey: string | null;
-  selectedNetwork: string;
+  networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
-  setStepCount: (step: ExchangeStepCount) => void;
-  stepCount: ExchangeStepCount;
   swkKit: StellarWalletsKit;
 }
 
 export const Exchange = (props: ExchangeProps) => {
   const [contractID, setContractID] = React.useState("");
+  const [signedTx, setSignedTx] = React.useState("");
+  const [txResultXDR, setTxResultXDR] = React.useState("");
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [stepCount, setStepCount] = React.useState(1 as StepCount);
+
+  bc.onmessage = (messageEvent) => {
+    const { data, type } = messageEvent.data;
+    switch (type) {
+      case ChannelMessageType.SignedTx: {
+        setSignedTx(data.signedTx);
+        setStepCount(3);
+        return;
+      }
+      default:
+        console.log("message type unknown");
+    }
+  };
+
   const connect = async () => {
     props.setError(null);
 
     // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    if (!props.pubKey) {
-      await props.swkKit.openModal({
-        allowedWallets: [
-          WalletType.ALBEDO,
-          WalletType.FREIGHTER,
-          WalletType.XBULL,
-        ],
-        onWalletSelected: async (option: ISupportedWallet) => {
-          try {
-            // Set selected wallet,  network, and public key
-            props.swkKit.setWallet(option.type);
-            const publicKey = await props.swkKit.getPublicKey();
+    await props.swkKit.openModal({
+      allowedWallets: [
+        WalletType.ALBEDO,
+        WalletType.FREIGHTER,
+        WalletType.XBULL,
+      ],
+      onWalletSelected: async (option: ISupportedWallet) => {
+        try {
+          // Set selected wallet,  network, and public key
+          props.swkKit.setWallet(option.type);
+          const publicKey = await props.swkKit.getPublicKey();
 
-            await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
-            props.setPubKey(publicKey);
-          } catch (error) {
-            console.log(error);
-            props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
-          }
-        },
-      });
-    } else {
-      props.setStepCount((props.stepCount + 1) as ExchangeStepCount);
-    }
+          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+
+          // also set pubkey in parent to display active profile
+          props.setPubKey(publicKey);
+          setStepCount((stepCount + 1) as StepCount);
+        } catch (error) {
+          console.log(error);
+          props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
+        }
+      },
+    });
   };
 
-  function renderStep(step: ExchangeStepCount) {
+  function renderStep(step: StepCount) {
     switch (step) {
+      case 4: {
+        return (
+          <>
+            <Heading as="h1" size="sm" addlClassName="title">
+              Transaction Result
+            </Heading>
+            <div className="signed-xdr">
+              <p className="detail-header">Result XDR</p>
+              <Card variant="secondary">
+                <div className="xdr-copy">
+                  <IconButton
+                    altText="copy result xdr data"
+                    icon={<Icon.ContentCopy key="copy-icon" />}
+                    onClick={() => copyContent(txResultXDR)}
+                  />
+                </div>
+                <div className="xdr-data">{txResultXDR}</div>
+              </Card>
+            </div>
+            <div className="submit-row-send">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={() => setStepCount(1)}
+              >
+                Start Over
+              </Button>
+            </div>
+          </>
+        );
+      }
+      case 3: {
+        const submit = async () => {
+          const server = getServer(props.networkDetails);
+
+          setIsSubmitting(true);
+
+          try {
+            const result = await submitTx(
+              signedTx,
+              props.networkDetails.networkPassphrase,
+              server,
+            );
+
+            setTxResultXDR(result);
+            setIsSubmitting(false);
+
+            setStepCount((stepCount + 1) as StepCount);
+          } catch (error) {
+            console.log(error);
+            setIsSubmitting(false);
+            props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+          }
+        };
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Submit Swap Transaction
+            </Heading>
+            <div className="signed-xdr">
+              <p className="detail-header">Signed XDR</p>
+              <Card variant="secondary">
+                <div className="xdr-copy">
+                  <IconButton
+                    altText="copy signed xdr data"
+                    icon={<Icon.ContentCopy key="copy-icon" />}
+                    onClick={() => copyContent(signedTx)}
+                  />
+                </div>
+                <div className="xdr-data">{signedTx}</div>
+              </Card>
+            </div>
+            <div className="submit-row">
+              <Button size="md" variant="tertiary" isFullWidth onClick={submit}>
+                Sign with Wallet & Submit
+                {isSubmitting && <Loader />}
+              </Button>
+            </div>
+          </>
+        );
+      }
       case 2: {
         const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
           setContractID(event.target.value);
         };
         const goToSwapperA = () => {
           const newWindow = window.open(
-            `${window.location.href}swapper-a`,
+            `${window.location.origin}/swapper-a`,
             "_blank",
           );
           if (newWindow) {
@@ -101,7 +209,6 @@ export const Exchange = (props: ExchangeProps) => {
       }
       case 1:
       default: {
-        const text = props.pubKey ? "Next" : "Connect Wallet";
         return (
           <>
             <Heading as="h1" size="sm">
@@ -112,9 +219,9 @@ export const Exchange = (props: ExchangeProps) => {
               fieldSize="md"
               id="selected-network"
               label="Select your Network"
-              value={props.selectedNetwork}
+              value={props.networkDetails.network}
             >
-              <option>{props.selectedNetwork}</option>
+              <option>{props.networkDetails.network}</option>
             </Select>
             <div className="submit-row">
               <Button
@@ -123,7 +230,7 @@ export const Exchange = (props: ExchangeProps) => {
                 isFullWidth
                 onClick={connect}
               >
-                {text}
+                Connect Wallet
               </Button>
             </div>
           </>
@@ -132,5 +239,5 @@ export const Exchange = (props: ExchangeProps) => {
     }
   }
 
-  return renderStep(props.stepCount);
+  return renderStep(stepCount);
 };

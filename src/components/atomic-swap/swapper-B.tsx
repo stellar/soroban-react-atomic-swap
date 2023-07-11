@@ -1,5 +1,13 @@
 import React from "react";
-import { Button, Heading, Select } from "@stellar/design-system";
+import { Button, Heading, Select, Profile } from "@stellar/design-system";
+import {
+  Transaction,
+  TransactionBuilder,
+  Memo,
+  MemoType,
+  Keypair,
+  Operation,
+} from "soroban-client";
 import {
   WalletNetwork,
   WalletType,
@@ -8,58 +16,119 @@ import {
 } from "stellar-wallets-kit";
 
 import { bc, ChannelMessageType } from "helpers/channel";
+import {
+  getArgsFromEnvelope,
+  getServer,
+  getTokenSymbol,
+  getTxBuilder,
+  signContractAuth,
+  BASE_FEE,
+} from "helpers/soroban";
 import { NetworkDetails } from "helpers/network";
 import { ERRORS } from "../../helpers/error";
 
-export type SwapperBStepCount = 1 | 2 | 3;
+type StepCount = 1 | 2 | 3;
 
 interface SwapperBProps {
-  pubKey: string | null;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
-  setStepCount: (step: SwapperBStepCount) => void;
   setPubKey: (pubKey: string) => void;
-  stepCount: SwapperBStepCount;
   swkKit: StellarWalletsKit;
 }
 
 export const SwapperB = (props: SwapperBProps) => {
   const [signedTx, setSignedTx] = React.useState("");
+  const [contractID, setContractID] = React.useState("");
+  const [swapArgs, setSwapArgs] = React.useState(
+    {} as ReturnType<typeof getArgsFromEnvelope>,
+  );
+  const [tokenASymbol, setTokenASymbol] = React.useState("");
+  const [tokenBSymbol, setTokenBSymbol] = React.useState("");
+  const [signedAuth, setSignedAuth] = React.useState("");
+  const [stepCount, setStepCount] = React.useState(1 as StepCount);
+
   const connect = async () => {
     props.setError(null);
 
     // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    if (!props.pubKey) {
-      await props.swkKit.openModal({
-        allowedWallets: [
-          WalletType.ALBEDO,
-          WalletType.FREIGHTER,
-          WalletType.XBULL,
-        ],
-        onWalletSelected: async (option: ISupportedWallet) => {
-          try {
-            // Set selected wallet,  network, and public key
-            props.swkKit.setWallet(option.type);
-            const publicKey = await props.swkKit.getPublicKey();
+    await props.swkKit.openModal({
+      allowedWallets: [
+        WalletType.ALBEDO,
+        WalletType.FREIGHTER,
+        WalletType.XBULL,
+      ],
+      onWalletSelected: async (option: ISupportedWallet) => {
+        try {
+          // Set selected wallet,  network, and public key
+          props.swkKit.setWallet(option.type);
+          const publicKey = await props.swkKit.getPublicKey();
 
-            await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
-            props.setPubKey(publicKey);
-          } catch (error) {
-            console.log(error);
-            props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
-          }
-        },
-      });
-    } else {
-      props.setStepCount((props.stepCount + 1) as SwapperBStepCount);
-    }
+          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+
+          const keypairB = Keypair.fromPublicKey(publicKey);
+
+          const server = getServer(props.networkDetails);
+          const tx = TransactionBuilder.fromXDR(
+            signedTx,
+            props.networkDetails.networkPassphrase,
+          ) as Transaction<Memo<MemoType>, Operation[]>;
+          const auth = await signContractAuth(
+            contractID,
+            keypairB,
+            tx,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+          setSignedAuth(auth.toEnvelope().toXDR("base64"));
+          const args = getArgsFromEnvelope(
+            auth.toEnvelope().toXDR("base64"),
+            props.networkDetails.networkPassphrase,
+          );
+          setSwapArgs(args);
+
+          const tokenASymbolBuilder = await getTxBuilder(
+            publicKey,
+            BASE_FEE,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+          const symbolA = await getTokenSymbol(
+            args.tokenA,
+            tokenASymbolBuilder,
+            server,
+          );
+          setTokenASymbol(symbolA);
+
+          const tokenBSymbolBuilder = await getTxBuilder(
+            publicKey,
+            BASE_FEE,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+          const symbolB = await getTokenSymbol(
+            args.tokenB,
+            tokenBSymbolBuilder,
+            server,
+          );
+          setTokenBSymbol(symbolB);
+
+          // set pubkey in parent to display active profile
+          props.setPubKey(publicKey);
+          setStepCount((stepCount + 1) as StepCount);
+        } catch (error) {
+          console.log(error);
+          props.setError(ERRORS.WALLET_CONNECTION_REJECTED);
+        }
+      },
+    });
   };
 
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
     switch (type) {
       case ChannelMessageType.SignedTx: {
-        setSignedTx(data);
+        setSignedTx(data.signedTx);
+        setContractID(data.contractID);
         return;
       }
       default:
@@ -67,13 +136,114 @@ export const SwapperB = (props: SwapperBProps) => {
     }
   };
 
-  console.log(signedTx);
+  function renderStep(step: StepCount) {
+    switch (step) {
+      case 3: {
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Authorized Successfully
+            </Heading>
+            <p>
+              You can now close this window, the exchange will submit your swap.
+            </p>
+          </>
+        );
+      }
+      case 2: {
+        const signWithWallet = () => {
+          try {
+            bc.postMessage({
+              type: ChannelMessageType.SignedTx,
+              data: {
+                contractID,
+                signedTx: signedAuth,
+              },
+            });
 
-  function renderStep(stepCount: SwapperBStepCount) {
-    switch (stepCount) {
+            setStepCount((stepCount + 1) as StepCount);
+          } catch (e) {
+            console.log("e: ", e);
+            props.setError(ERRORS.UNABLE_TO_SIGN_TX);
+          }
+        };
+
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Confirm Swap Transaction
+            </Heading>
+            <div className="tx-details">
+              {Object.keys(swapArgs).length > 0 && (
+                <>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Network</p>
+                    <p className="detail-value">
+                      {props.networkDetails.network}
+                    </p>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Address A</p>
+                    <div className="address-a-identicon">
+                      <Profile
+                        isShort
+                        publicAddress={swapArgs.addressA}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Amount A</p>
+                    <p className="detail-value">
+                      {swapArgs.amountA} {tokenASymbol}
+                    </p>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Min Amount A</p>
+                    <p className="detail-value">
+                      {swapArgs.minAForB} {tokenASymbol}
+                    </p>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Address B</p>
+                    <div className="address-b-identicon">
+                      <Profile
+                        isShort
+                        publicAddress={swapArgs.addressB}
+                        size="sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Amount B</p>
+                    <p className="detail-value">
+                      {swapArgs.amountB} {tokenBSymbol}
+                    </p>
+                  </div>
+                  <div className="tx-detail-item">
+                    <p className="detail-header">Min Amount B</p>
+                    <p className="detail-value">
+                      {swapArgs.minBForA} {tokenBSymbol}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="submit-row">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={signWithWallet}
+              >
+                Sign with Wallet
+              </Button>
+            </div>
+          </>
+        );
+      }
       case 1:
       default: {
-        const text = props.pubKey ? "Next" : "Connect Wallet";
         return (
           <>
             <Heading as="h1" size="sm">
@@ -95,7 +265,7 @@ export const SwapperB = (props: SwapperBProps) => {
                 isFullWidth
                 onClick={connect}
               >
-                {text}
+                Connect Wallet
               </Button>
             </div>
           </>
@@ -103,5 +273,5 @@ export const SwapperB = (props: SwapperBProps) => {
       }
     }
   }
-  return renderStep(props.stepCount);
+  return renderStep(stepCount);
 };
