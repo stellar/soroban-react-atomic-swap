@@ -72,7 +72,7 @@ export const SwapperB = (props: SwapperBProps) => {
             signedTx,
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
-          const auth = await signContractAuth(
+          const auth = signContractAuth(
             contractID,
             keypairB,
             tx,

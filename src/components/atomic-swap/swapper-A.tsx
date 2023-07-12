@@ -127,7 +127,7 @@ export const SwapperA = (props: SwapperAProps) => {
 
           try {
             const keypairA = Keypair.fromPublicKey(pubKey);
-            const signedTx = await signContractAuth(
+            const signedTx = signContractAuth(
               contractID,
               keypairA,
               swapTx,

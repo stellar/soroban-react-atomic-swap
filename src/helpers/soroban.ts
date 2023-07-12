@@ -2,13 +2,15 @@ import {
   Account,
   Address,
   Contract,
+  hash,
   Keypair,
   Memo,
   MemoType,
+  nativeToScVal,
   Operation,
   Server,
-  StrKey,
   SorobanRpc,
+  StrKey,
   TimeoutInfinite,
   Transaction,
   TransactionBuilder,
@@ -41,13 +43,6 @@ export const BASE_FEE = "100";
 
 export const RPC_URLS: { [key: string]: string } = {
   FUTURENET: "https://rpc-futurenet.stellar.org/",
-};
-
-export const sha256 = async (message: string) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(message);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return hash;
 };
 
 export const accountToScVal = (account: string) =>
@@ -122,24 +117,24 @@ export const numberToI128 = (value: number): xdr.ScVal => {
     padded[0] |= 0x80;
   }
 
-  const hi = new xdr.Int64(
+  const hi = new xdr.Int64([
     bigNumberFromBytes(false, ...padded.slice(4, 8)).toNumber(),
     bigNumberFromBytes(false, ...padded.slice(0, 4)).toNumber(),
-  );
-  const lo = new xdr.Uint64(
+  ]);
+  const lo = new xdr.Uint64([
     bigNumberFromBytes(false, ...padded.slice(12, 16)).toNumber(),
     bigNumberFromBytes(false, ...padded.slice(8, 12)).toNumber(),
-  );
+  ]);
 
   return xdr.ScVal.scvI128(new xdr.Int128Parts({ lo, hi }));
 };
 
 const numberToU64 = (value: string) => {
   const bigi = BigInt(value);
-  return new xdr.Uint64(
+  return new xdr.Uint64([
     Number(BigInt.asUintN(32, bigi)),
     Number(BigInt.asUintN(64, bigi) >> 32n),
-  );
+  ]);
 };
 
 // XDR -> Number
@@ -288,118 +283,95 @@ export const getTokenSymbol = async (
   return result;
 };
 
-export const buildContractAuth = async (
-  auths: string[],
+export const buildContractAuth = (
+  authEntries: xdr.SorobanAuthorizationEntry[],
   signerKeypair: Keypair,
   networkPassphrase: string,
   contractID: string,
   server: Server,
 ) => {
-  const contractAuths = [];
+  const signedAuthEntries = [];
 
-  if (auths) {
-    for (const authStr of auths) {
-      const contractAuth = xdr.ContractAuth.fromXDR(authStr, "base64");
+  if (authEntries.length) {
+    for (const entry of authEntries) {
+      if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
+        const entryAddress = entry.credentials().address().address();
 
-      if (contractAuth.addressWithNonce()) {
-        const authAccount = contractAuth
-          .addressWithNonce()!
-          .address()
-          .accountId()
-          .toXDR("hex");
-
-        if (signerKeypair.xdrPublicKey().toXDR("hex") === authAccount) {
+        if (
+          signerKeypair.xdrPublicKey().toXDR("hex") ===
+          entryAddress.toXDR("hex")
+        ) {
           let nonce = "0";
+          let expirationLedgerSeq = 0;
 
           const key = xdr.LedgerKey.contractData(
             new xdr.LedgerKeyContractData({
-              contractId: Buffer.from(contractID).subarray(0, 32),
-              key: xdr.ScVal.scvLedgerKeyNonce(
-                new xdr.ScNonceKey({
-                  nonceAddress: xdr.ScAddress.scAddressTypeContract(
-                    Buffer.from(signerKeypair.publicKey()).subarray(0, 32),
-                  ),
-                }),
+              contract: xdr.ScAddress.scAddressTypeContract(
+                Buffer.from(contractID),
               ),
+              key: xdr.ScVal.scvLedgerKeyContractInstance(),
+              durability: xdr.ContractDataDurability.persistent(),
+              bodyType: xdr.ContractEntryBodyType.dataEntry(),
             }),
           );
 
-          // Fetch the current contract nonce
-          server.getLedgerEntry(key).then((response) => {
-            if (response.xdr) {
+          // Fetch the current contract nonce/ledger seq
+          server.getLedgerEntries([key]).then((response) => {
+            if (response.entries.length) {
               const parsed = xdr.LedgerEntryData.fromXDR(
-                response.xdr,
+                response.entries[0].xdr,
                 "base64",
               );
               nonce = parsed.data().dataValue().toString();
+              expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
             }
           });
 
-          // eslint-disable-next-line no-await-in-loop
-          const passPhraseHash = await sha256(networkPassphrase);
+          const passPhraseHash = hash(Buffer.from(networkPassphrase));
+          const invocation = entry.rootInvocation();
           const hashIDPreimageEnvelope =
-            xdr.HashIdPreimage.envelopeTypeContractAuth(
-              new xdr.HashIdPreimageContractAuth({
-                networkId: Buffer.from(passPhraseHash).subarray(0, 32),
-                nonce: numberToU64(nonce),
-                invocation: contractAuth.rootInvocation(),
-              }),
-            ).toXDR("raw");
+            new xdr.HashIdPreimageSorobanAuthorization({
+              networkId: Buffer.from(passPhraseHash).subarray(0, 32),
+              invocation,
+              nonce: numberToU64(nonce),
+              signatureExpirationLedger: expirationLedgerSeq,
+            });
 
-          // eslint-disable-next-line no-await-in-loop
-          const preimageHash = await sha256(hashIDPreimageEnvelope.toString());
-          const signature = signerKeypair.sign(Buffer.from(preimageHash));
-          // Need to double wrap with vec because of a preview 9 bug, fixed in preview 10
-          const sigBAccountSig = xdr.ScVal.scvVec([
-            xdr.ScVal.scvVec([
-              xdr.ScVal.scvMap([
-                new xdr.ScMapEntry({
-                  key: xdr.ScVal.scvSymbol("public_key"),
-                  val: xdr.ScVal.scvBytes(signerKeypair.rawPublicKey()),
-                }),
-                new xdr.ScMapEntry({
-                  key: xdr.ScVal.scvSymbol("signature"),
-                  val: xdr.ScVal.scvBytes(Buffer.from(signature)),
-                }),
-              ]),
-            ]),
-          ]);
-          contractAuth.signatureArgs([sigBAccountSig]);
+          const preimageHash = hash(hashIDPreimageEnvelope.toXDR("raw"));
+          const signature = signerKeypair.sign(preimageHash);
+          const authEntry = new xdr.SorobanAuthorizationEntry({
+            credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+              new xdr.SorobanAddressCredentials({
+                address: new Address(signerKeypair.publicKey()).toScAddress(),
+                nonce: hashIDPreimageEnvelope.nonce(),
+                signatureExpirationLedger:
+                  hashIDPreimageEnvelope.signatureExpirationLedger(),
+                signatureArgs: [
+                  nativeToScVal({
+                    public_key: signerKeypair.rawPublicKey(),
+                    signature,
+                  }),
+                ],
+              }),
+            ),
+            rootInvocation: invocation,
+          });
+          signedAuthEntries.push(authEntry);
         }
       }
-      contractAuths.push(contractAuth);
     }
   }
 
-  return contractAuths;
+  return signedAuthEntries;
 };
 
-export const signContractAuth = async (
+export const signContractAuth = (
   contractID: string,
   signerKeypair: Keypair,
   tx: Transaction,
   server: Server,
   networkPassphrase: string,
 ) => {
-  const simulation = await server.simulateTransaction(tx);
-
-  // Soroban transaction can only have 1 operation
-  const rawInvokeHostFunctionOp = tx
-    .operations[0] as Operation.InvokeHostFunction;
-
-  const authDecoratedHostFunctions = await Promise.all(
-    (simulation.results || []).map(async (functionSimulationResult) => {
-      const signedAuth = await buildContractAuth(
-        functionSimulationResult.auth,
-        signerKeypair,
-        networkPassphrase,
-        contractID,
-        server,
-      );
-      return signedAuth;
-    }),
-  );
-
   // rebuild tx and attach signed auth
   const source = new Account(tx.source, `${parseInt(tx.sequence, 10) - 1}`);
   const txnBuilder = new TransactionBuilder(source, {
@@ -412,10 +384,27 @@ export const signContractAuth = async (
     minAccountSequenceLedgerGap: tx.minAccountSequenceLedgerGap,
   });
 
+  if (!tx.operations.length) {
+    return txnBuilder.build();
+  }
+
+  // Soroban transaction can only have 1 operation
+  const rawInvokeHostFunctionOp = tx
+    .operations[0] as Operation.InvokeHostFunction;
+
+  const auth = rawInvokeHostFunctionOp.auth ? rawInvokeHostFunctionOp.auth : [];
+  const signedAuth = buildContractAuth(
+    auth,
+    signerKeypair,
+    networkPassphrase,
+    contractID,
+    server,
+  );
+
   txnBuilder.addOperation(
     Operation.invokeHostFunction({
       ...rawInvokeHostFunctionOp,
-      auth: authDecoratedHostFunctions.flat(),
+      auth: signedAuth,
     }),
   );
 
@@ -432,13 +421,13 @@ export const getArgsFromEnvelope = (
   ) as Transaction<Memo<MemoType>, Operation.InvokeHostFunction[]>;
 
   // only one op per tx in Soroban
-  const op = txEnvelope.operations[0].function;
+  const op = txEnvelope.operations[0].func;
 
   if (!op) {
     throw new Error(ERRORS.BAD_ENVELOPE);
   }
 
-  const args = op.invokeArgs();
+  const args = op.invokeContract();
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
