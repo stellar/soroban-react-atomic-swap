@@ -48,13 +48,6 @@ export const RPC_URLS: { [key: string]: string } = {
 export const accountToScVal = (account: string) =>
   new Address(account).toScVal();
 
-// Can be used whenever you need an i128 argument for a contract method
-export const numberToI128 = (value: number): xdr.ScVal =>
-  nativeToScVal(value, { type: "i128" });
-
-const numberToU64 = (value: string) =>
-  nativeToScVal(value, { type: "u64" }).i64();
-
 export const valueToI128String = (value: xdr.ScVal) =>
   new XdrLargeInt("i128", [
     BigInt(value.i128().lo().low),
@@ -145,10 +138,10 @@ export const buildSwap = async (
           accountToScVal(swapperBPubKey),
           accountToScVal(contractA.contractId()),
           accountToScVal(contractB.contractId()),
-          numberToI128(tokenA.amount),
-          numberToI128(tokenA.minAmount),
-          numberToI128(tokenB.amount),
-          numberToI128(tokenB.minAmount),
+          nativeToScVal(tokenA.amount, { type: "i128" }),
+          nativeToScVal(tokenA.minAmount, { type: "i128" }),
+          nativeToScVal(tokenB.amount, { type: "i128" }),
+          nativeToScVal(tokenB.minAmount, { type: "i128" }),
         ],
       ),
     )
@@ -201,7 +194,6 @@ export const buildContractAuth = (
           signerKeypair.xdrPublicKey().toXDR("hex") ===
           entryAddress.toXDR("hex")
         ) {
-          let nonce = "0";
           let expirationLedgerSeq = 0;
 
           const key = xdr.LedgerKey.contractData(
@@ -222,7 +214,6 @@ export const buildContractAuth = (
                 response.entries[0].xdr,
                 "base64",
               );
-              nonce = parsed.data().dataValue().toString();
               expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
             }
           });
@@ -233,7 +224,7 @@ export const buildContractAuth = (
             new xdr.HashIdPreimageSorobanAuthorization({
               networkId: Buffer.from(passPhraseHash).subarray(0, 32),
               invocation,
-              nonce: numberToU64(nonce),
+              nonce: nativeToScVal(1, { type: "i64" }).i64(),
               signatureExpirationLedger: expirationLedgerSeq,
             });
 
