@@ -42,7 +42,7 @@ export const GetTxStatus: {
 export const BASE_FEE = "100";
 
 export const RPC_URLS: { [key: string]: string } = {
-  FUTURENET: "https://rpc-futurenet.stellar.org/",
+  FUTURENET: "https://rpc-futurenet.stellar.org:443",
 };
 
 export const accountToScVal = (account: string) =>
@@ -69,11 +69,21 @@ export const simulateTx = async <ArgType>(
   server: Server,
 ): Promise<ArgType> => {
   const { results } = await server.simulateTransaction(tx);
+
   if (!results || results.length !== 1) {
     throw new Error("Invalid response from simulateTransaction");
   }
   const result = results[0];
-  return scValToNative(xdr.ScVal.fromXDR(Buffer.from(result.xdr)));
+  const scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
+  let convertedScVal: any;
+  try {
+    // handle a case where scValToNative doesn't properly handle scvString
+    convertedScVal = scVal.str().toString();
+    return convertedScVal;
+  } catch (e) {
+    console.log(e);
+  }
+  return scValToNative(scVal);
 };
 
 // Get the tokens decimals, decoded as a number
@@ -189,6 +199,7 @@ export const buildContractAuth = (
     for (const entry of authEntries) {
       if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
         const entryAddress = entry.credentials().address().address();
+        const entryNonce = entry.credentials().address().nonce();
 
         if (
           signerKeypair.xdrPublicKey().toXDR("hex") ===
@@ -224,7 +235,7 @@ export const buildContractAuth = (
             new xdr.HashIdPreimageSorobanAuthorization({
               networkId: Buffer.from(passPhraseHash).subarray(0, 32),
               invocation,
-              nonce: nativeToScVal(1, { type: "i64" }).i64(),
+              nonce: entryNonce,
               signatureExpirationLedger: expirationLedgerSeq,
             });
 

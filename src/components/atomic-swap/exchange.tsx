@@ -18,7 +18,7 @@ import {
 
 import { bc, ChannelMessageType } from "helpers/channel";
 import { copyContent } from "helpers/dom";
-import { NetworkDetails } from "helpers/network";
+import { NetworkDetails, signTx } from "helpers/network";
 import { getServer, submitTx } from "helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
@@ -37,6 +37,9 @@ export const Exchange = (props: ExchangeProps) => {
   const [txResultXDR, setTxResultXDR] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
+
+  // TODO: refactor, keys should be kept local in all steps
+  const [exchangeKey, setExchangeKey] = React.useState("");
 
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
@@ -71,6 +74,8 @@ export const Exchange = (props: ExchangeProps) => {
 
           // also set pubkey in parent to display active profile
           props.setPubKey(publicKey);
+          setExchangeKey(publicKey);
+
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);
@@ -120,9 +125,11 @@ export const Exchange = (props: ExchangeProps) => {
 
           setIsSubmitting(true);
 
+          const _signedXdr = await signTx(signedTx, exchangeKey, props.swkKit);
+
           try {
             const result = await submitTx(
-              signedTx,
+              _signedXdr,
               props.networkDetails.networkPassphrase,
               server,
             );
