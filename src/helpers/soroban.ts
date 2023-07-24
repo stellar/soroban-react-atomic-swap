@@ -18,8 +18,9 @@ import {
   xdr,
   XdrLargeInt,
 } from "soroban-client";
+import { StellarWalletsKit } from "stellar-wallets-kit";
 
-import { NetworkDetails } from "./network";
+import { NetworkDetails, signTx } from "./network";
 import { ERRORS } from "./error";
 
 export const SendTxStatus: {
@@ -186,23 +187,29 @@ export const getTokenSymbol = async (
   return result;
 };
 
-export const buildContractAuth = (
+export const buildContractAuth = async (
   authEntries: xdr.SorobanAuthorizationEntry[],
-  signerKeypair: Keypair,
+  signerPubKey: string,
   networkPassphrase: string,
   contractID: string,
   server: Server,
+  kit: StellarWalletsKit,
 ) => {
   const signedAuthEntries = [];
 
   if (authEntries.length) {
     for (const entry of authEntries) {
       if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
-        const entryAddress = entry.credentials().address().address();
+        const entryAddress = entry
+          .credentials()
+          .address()
+          .address()
+          .accountId();
         const entryNonce = entry.credentials().address().nonce();
+        const signerKeyPair = Keypair.fromPublicKey(signerPubKey);
 
         if (
-          signerKeypair.xdrPublicKey().toXDR("hex") ===
+          signerKeyPair.xdrPublicKey().toXDR("hex") ===
           entryAddress.toXDR("hex")
         ) {
           let expirationLedgerSeq = 0;
@@ -240,17 +247,25 @@ export const buildContractAuth = (
             });
 
           const preimageHash = hash(hashIDPreimageEnvelope.toXDR("raw"));
-          const signature = signerKeypair.sign(preimageHash);
+
+          console.log(preimageHash.toString("base64"));
+          // eslint-disable-next-line no-await-in-loop
+          const signature = await signTx(
+            preimageHash.toString("base64"),
+            signerPubKey,
+            kit,
+          );
+          console.log("entry");
           const authEntry = new xdr.SorobanAuthorizationEntry({
             credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
               new xdr.SorobanAddressCredentials({
-                address: new Address(signerKeypair.publicKey()).toScAddress(),
+                address: new Address(signerPubKey).toScAddress(),
                 nonce: hashIDPreimageEnvelope.nonce(),
                 signatureExpirationLedger:
                   hashIDPreimageEnvelope.signatureExpirationLedger(),
                 signatureArgs: [
                   nativeToScVal({
-                    public_key: signerKeypair.rawPublicKey(),
+                    public_key: signerPubKey,
                     signature,
                   }),
                 ],
@@ -259,6 +274,8 @@ export const buildContractAuth = (
             rootInvocation: invocation,
           });
           signedAuthEntries.push(authEntry);
+        } else {
+          signedAuthEntries.push(entry);
         }
       }
     }
@@ -267,12 +284,13 @@ export const buildContractAuth = (
   return signedAuthEntries;
 };
 
-export const signContractAuth = (
+export const signContractAuth = async (
   contractID: string,
-  signerKeypair: Keypair,
+  signerPubKey: string,
   tx: Transaction,
   server: Server,
   networkPassphrase: string,
+  kit: StellarWalletsKit,
 ) => {
   // rebuild tx and attach signed auth
   const source = new Account(tx.source, `${parseInt(tx.sequence, 10) - 1}`);
@@ -294,14 +312,17 @@ export const signContractAuth = (
   const rawInvokeHostFunctionOp = tx
     .operations[0] as Operation.InvokeHostFunction;
 
+  console.log(rawInvokeHostFunctionOp);
   const auth = rawInvokeHostFunctionOp.auth ? rawInvokeHostFunctionOp.auth : [];
-  const signedAuth = buildContractAuth(
+  const signedAuth = await buildContractAuth(
     auth,
-    signerKeypair,
+    signerPubKey,
     networkPassphrase,
     contractID,
     server,
+    kit,
   );
+  console.log(signedAuth);
 
   txnBuilder.addOperation(
     Operation.invokeHostFunction({

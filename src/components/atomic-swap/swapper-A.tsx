@@ -6,7 +6,6 @@ import {
   Input,
   Profile,
 } from "@stellar/design-system";
-import { Keypair } from "soroban-client";
 import BigNumber from "bignumber.js";
 import {
   WalletNetwork,
@@ -126,13 +125,13 @@ export const SwapperA = (props: SwapperAProps) => {
           );
 
           try {
-            const keypairA = Keypair.fromPublicKey(pubKey);
-            const signedTx = signContractAuth(
+            const signedTx = await signContractAuth(
               contractID,
-              keypairA,
+              pubKey,
               swapTx,
               server,
               props.networkDetails.networkPassphrase,
+              props.swkKit,
             );
             const newWindow = window.open(
               `${window.location.origin}/swapper-b`,

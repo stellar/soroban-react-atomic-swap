@@ -5,8 +5,8 @@ import {
   TransactionBuilder,
   Memo,
   MemoType,
-  Keypair,
   Operation,
+  xdr,
 } from "soroban-client";
 import {
   WalletNetwork,
@@ -65,19 +65,18 @@ export const SwapperB = (props: SwapperBProps) => {
 
           await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
 
-          const keypairB = Keypair.fromPublicKey(publicKey);
-
           const server = getServer(props.networkDetails);
           const tx = TransactionBuilder.fromXDR(
-            signedTx,
+            xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
-          const auth = signContractAuth(
+          const auth = await signContractAuth(
             contractID,
-            keypairB,
+            publicKey,
             tx,
             server,
             props.networkDetails.networkPassphrase,
+            props.swkKit,
           );
           setSignedAuth(auth.toEnvelope().toXDR("base64"));
           const args = getArgsFromEnvelope(
