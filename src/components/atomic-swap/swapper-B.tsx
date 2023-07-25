@@ -137,7 +137,7 @@ export const SwapperB = (props: SwapperBProps) => {
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
     switch (type) {
-      case ChannelMessageType.SignedTx: {
+      case ChannelMessageType.BuiltTx: {
         setSignedTx(data.signedTx);
         setContractID(data.contractID);
         return;

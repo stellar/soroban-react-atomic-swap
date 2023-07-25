@@ -112,7 +112,7 @@ export const SwapperA = (props: SwapperAProps) => {
             minAmount: new BigNumber(minAmountB).toNumber(),
           };
 
-          const swapTx = await buildSwap(
+          const { preparedTransaction, footprint } = await buildSwap(
             contractID,
             tokenA,
             tokenB,
@@ -128,7 +128,7 @@ export const SwapperA = (props: SwapperAProps) => {
             const signedTx = await signContractAuth(
               contractID,
               pubKey,
-              swapTx,
+              preparedTransaction,
               server,
               props.networkDetails.networkPassphrase,
               props.swkKit,
@@ -140,10 +140,16 @@ export const SwapperA = (props: SwapperAProps) => {
             if (newWindow) {
               newWindow.onload = () => {
                 bc.postMessage({
-                  type: ChannelMessageType.SignedTx,
+                  type: ChannelMessageType.BuiltTx,
                   data: {
                     contractID,
                     signedTx: signedTx.toEnvelope().toXDR("base64"),
+                  },
+                });
+                bc.postMessage({
+                  type: ChannelMessageType.Footprint,
+                  data: {
+                    footprint,
                   },
                 });
               };

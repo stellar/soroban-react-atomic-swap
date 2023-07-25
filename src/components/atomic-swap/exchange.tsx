@@ -27,7 +27,7 @@ import {
 import { bc, ChannelMessageType } from "helpers/channel";
 import { copyContent } from "helpers/dom";
 import { NetworkDetails, signTx } from "helpers/network";
-import { getServer, submitTx } from "helpers/soroban";
+import { getServer, submitTx, assembleTransaction } from "helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
 type StepCount = 1 | 2 | 3 | 4;
@@ -42,6 +42,7 @@ interface ExchangeProps {
 export const Exchange = (props: ExchangeProps) => {
   const [contractID, setContractID] = React.useState("");
   const [signedTx, setSignedTx] = React.useState("");
+  const [footprint, setFootprint] = React.useState("");
   const [txResultXDR, setTxResultXDR] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
@@ -50,7 +51,16 @@ export const Exchange = (props: ExchangeProps) => {
 
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
+
     switch (type) {
+      case ChannelMessageType.TxSim: {
+        console.log(data.sim);
+        return;
+      }
+      case ChannelMessageType.Footprint: {
+        setFootprint(data.footprint);
+        return;
+      }
       case ChannelMessageType.SignedTx: {
         setSignedTx(data.signedTx);
         setStepCount(3);
@@ -136,10 +146,41 @@ export const Exchange = (props: ExchangeProps) => {
             xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
-          const preparedTransaction = await server.prepareTransaction(
+
+          const _txSim = await server.simulateTransaction(tx);
+
+          console.log(footprint);
+          const preparedTransaction = assembleTransaction(
             tx,
             props.networkDetails.networkPassphrase,
+            _txSim,
+            xdr.LedgerFootprint.fromXDR(Buffer.from(footprint, "base64")),
           );
+
+          // const op = preparedTransaction.operations[0] as Operation.InvokeHostFunction
+          // const auth = op.auth ? op.auth : [];
+          // const credentialAddressEntry = auth.find(a => a.credentials().switch().name === "sorobanCredentialsAddress")!
+          // const sigArgs = credentialAddressEntry.credentials().address().signatureArgs()
+          // const { signature, ...rest } = scValToNative(sigArgs[0])
+          // const expiration = 98002 + 1000000
+          // const passPhraseHash = hash(Buffer.from(props.networkDetails.networkPassphrase));
+          // const invocation = credentialAddressEntry.rootInvocation();
+          // const entryNonce = credentialAddressEntry.credentials().address().nonce();
+          // const hashIDPreimageAuth =
+          //   new xdr.HashIdPreimageSorobanAuthorization({
+          //     networkId: Buffer.from(passPhraseHash).subarray(0, 32),
+          //     invocation,
+          //     nonce: entryNonce,
+          //     signatureExpirationLedger: expiration,
+          //   });
+
+          // const preimage = xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(hashIDPreimageAuth)
+          // const preimageHash = hash(preimage.toXDR("raw"));
+
+          // const _keypair = Keypair.fromSecret("SDAKIKDBVRL7J2JSDX2CJ4VQREGULIKUDXMV44PRE5PIX26L5O2STV6L")
+          // console.log(signature, rest)
+          // console.log(_keypair.verify(preimageHash, signature))
+
           const _signedXdr = await signTx(
             preparedTransaction.toXDR(),
             exchangeKey,

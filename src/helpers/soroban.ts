@@ -1,7 +1,9 @@
 import {
+  assembleTransaction as sorobanAssemble,
   Account,
   Address,
   Contract,
+  FeeBumpTransaction,
   hash,
   Keypair,
   Memo,
@@ -162,12 +164,30 @@ export const buildSwap = async (
     tx.addMemo(Memo.text(memo));
   }
 
-  const preparedTransaction = await server.prepareTransaction(
-    tx.build(),
+  const built = tx.build();
+  const sim = await server.simulateTransaction(built);
+  const preparedTransaction = sorobanAssemble(
+    built,
     networkPassphrase,
+    sim,
+  ) as Transaction<Memo<MemoType>, Operation[]>;
+  // const preparedTransaction = await server.prepareTransaction(
+  //   tx.build(),
+  //   networkPassphrase,
+  // );
+
+  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
+    sim.transactionData,
+    "base64",
   );
 
-  return preparedTransaction as Transaction<Memo<MemoType>, Operation[]>;
+  console.log(sorobanTxData.resources());
+  console.log(sorobanTxData.resources().footprint());
+
+  return {
+    preparedTransaction,
+    footprint: sorobanTxData.resources().footprint().toXDR("base64"),
+  };
 };
 
 // Get the tokens symbol, decoded as a string
@@ -197,6 +217,7 @@ export const buildContractAuth = async (
 ) => {
   const signedAuthEntries = [];
 
+  console.dir(authEntries, { depth: 5 });
   if (authEntries.length) {
     for (const entry of authEntries) {
       if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
@@ -223,48 +244,59 @@ export const buildContractAuth = async (
             }),
           );
 
-          // Fetch the current contract nonce/ledger seq
-          server.getLedgerEntries([key]).then((response) => {
-            if (response.entries && response.entries.length) {
-              const parsed = xdr.LedgerEntryData.fromXDR(
-                response.entries[0].xdr,
-                "base64",
-              );
-              expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
-            }
-          });
+          // Fetch the current contract ledger seq
+          // eslint-disable-next-line no-await-in-loop
+          const entryRes = await server.getLedgerEntries([key]);
+          if (entryRes.entries && entryRes.entries.length) {
+            const parsed = xdr.LedgerEntryData.fromXDR(
+              entryRes.entries[0].xdr,
+              "base64",
+            );
+            expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
+          }
 
           const passPhraseHash = hash(Buffer.from(networkPassphrase));
           const invocation = entry.rootInvocation();
-          const hashIDPreimageEnvelope =
-            new xdr.HashIdPreimageSorobanAuthorization({
+          const hashIDPreimageAuth = new xdr.HashIdPreimageSorobanAuthorization(
+            {
               networkId: Buffer.from(passPhraseHash).subarray(0, 32),
               invocation,
               nonce: entryNonce,
               signatureExpirationLedger: expirationLedgerSeq,
-            });
-
-          const preimageHash = hash(hashIDPreimageEnvelope.toXDR("raw"));
-
-          // eslint-disable-next-line no-await-in-loop
-          const signature = await signTx(
-            preimageHash.toString("base64"),
-            signerPubKey,
-            kit,
+            },
           );
+
+          const preimage =
+            xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(
+              hashIDPreimageAuth,
+            );
+          const preimageHash = hash(preimage.toXDR("raw"));
+
+          // thanks linter
+          console.log(kit, signTx);
+          // eslint-disable-next-line no-await-in-loop
+          // const signature = await signTx(
+          //   preimageHash.toString("base64"),
+          //   signerPubKey,
+          //   kit,
+          // );
+
+          // use this until freighter can sign blobs
+          const _keypair = Keypair.fromSecret("S..");
+          const signature = _keypair.sign(preimageHash);
 
           const authEntry = new xdr.SorobanAuthorizationEntry({
             credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
               new xdr.SorobanAddressCredentials({
                 address: new Address(signerPubKey).toScAddress(),
-                nonce: hashIDPreimageEnvelope.nonce(),
+                nonce: hashIDPreimageAuth.nonce(),
                 signatureExpirationLedger:
-                  hashIDPreimageEnvelope.signatureExpirationLedger(),
+                  hashIDPreimageAuth.signatureExpirationLedger(),
                 signatureArgs: [
                   nativeToScVal(
                     {
-                      public_key: Buffer.from(signerPubKey, "base64"),
-                      signature: Buffer.from(signature, "base64"),
+                      public_key: StrKey.decodeEd25519PublicKey(signerPubKey),
+                      signature,
                     },
                     {
                       type: {
@@ -282,6 +314,8 @@ export const buildContractAuth = async (
         } else {
           signedAuthEntries.push(entry);
         }
+      } else {
+        signedAuthEntries.push(entry);
       }
     }
   }
@@ -406,4 +440,115 @@ export const submitTx = async (
       `Unabled to submit transaction, status: ${sendResponse.status}`,
     );
   }
+};
+
+function isSorobanTransaction(tx: Transaction): boolean {
+  if (tx.operations.length !== 1) {
+    return false;
+  }
+
+  switch (tx.operations[0].type) {
+    case "invokeHostFunction":
+    case "bumpFootprintExpiration":
+    case "restoreFootprint":
+      return true;
+
+    default:
+      return false;
+  }
+}
+
+export const assembleTransaction = (
+  raw: Transaction | FeeBumpTransaction,
+  networkPassphrase: string,
+  simulation: SorobanRpc.SimulateTransactionResponse,
+  footprint: any,
+): Transaction<Memo<MemoType>, Operation[]> => {
+  if ("innerTransaction" in raw) {
+    return assembleTransaction(
+      raw.innerTransaction,
+      networkPassphrase,
+      simulation,
+      footprint,
+    );
+  }
+
+  if (!isSorobanTransaction(raw)) {
+    throw new TypeError(
+      "unsupported transaction: must contain exactly one " +
+        "invokeHostFunction, bumpFootprintExpiration, or restoreFootprint " +
+        "operation",
+    );
+  }
+
+  if (simulation.results.length !== 1) {
+    throw new Error(`simulation results invalid: ${simulation.results}`);
+  }
+
+  const source = new Account(raw.source, `${parseInt(raw.sequence, 10) - 1}`);
+  const classicFeeNum = parseInt(raw.fee, 10) || 0;
+  const minResourceFeeNum = parseInt(simulation.minResourceFee, 10) || 0;
+  const txnBuilder = new TransactionBuilder(source, {
+    // automatically update the tx fee that will be set on the resulting tx to
+    // the sum of 'classic' fee provided from incoming tx.fee and minResourceFee
+    // provided by simulation.
+    //
+    // 'classic' tx fees are measured as the product of tx.fee * 'number of
+    // operations', In soroban contract tx, there can only be single operation
+    // in the tx, so can make simplification of total classic fees for the
+    // soroban transaction will be equal to incoming tx.fee + minResourceFee.
+    fee: (classicFeeNum + minResourceFeeNum).toString(),
+    memo: raw.memo,
+    networkPassphrase,
+    timebounds: raw.timeBounds,
+    ledgerbounds: raw.ledgerBounds,
+    minAccountSequence: raw.minAccountSequence,
+    minAccountSequenceAge: raw.minAccountSequenceAge,
+    minAccountSequenceLedgerGap: raw.minAccountSequenceLedgerGap,
+    extraSigners: raw.extraSigners,
+  });
+
+  switch (raw.operations[0].type) {
+    case "invokeHostFunction":
+      {
+        const invokeOp: Operation.InvokeHostFunction = raw.operations[0];
+        const existingAuth = invokeOp.auth ?? [];
+        txnBuilder.addOperation(
+          Operation.invokeHostFunction({
+            source: invokeOp.source,
+            func: invokeOp.func,
+            // apply the auth from the simulation
+            auth:
+              existingAuth.length > 0
+                ? existingAuth
+                : simulation.results[0].auth?.map((a) =>
+                    xdr.SorobanAuthorizationEntry.fromXDR(a, "base64"),
+                  ) ?? [],
+          }),
+        );
+      }
+      break;
+
+    case "bumpFootprintExpiration":
+      txnBuilder.addOperation(
+        Operation.bumpFootprintExpiration(raw.operations[0]),
+      );
+      break;
+
+    case "restoreFootprint":
+      txnBuilder.addOperation(Operation.restoreFootprint(raw.operations[0]));
+      break;
+    default:
+      throw new Error(`op not supported: ${raw.operations[0].type}`);
+  }
+
+  // apply the pre-built Soroban Tx Data from simulation onto the Tx
+  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
+    simulation.transactionData,
+    "base64",
+  );
+  sorobanTxData.resources().footprint(footprint);
+  txnBuilder.setSorobanData(sorobanTxData);
+
+  return txnBuilder.build();
 };
