@@ -216,9 +216,7 @@ export const buildContractAuth = async (
 
           const key = xdr.LedgerKey.contractData(
             new xdr.LedgerKeyContractData({
-              contract: xdr.ScAddress.scAddressTypeContract(
-                Buffer.from(contractID),
-              ),
+              contract: new Contract(contractID).address().toScAddress(),
               key: xdr.ScVal.scvLedgerKeyContractInstance(),
               durability: xdr.ContractDataDurability.persistent(),
               bodyType: xdr.ContractEntryBodyType.dataEntry(),
