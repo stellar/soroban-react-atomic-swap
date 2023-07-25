@@ -120,7 +120,7 @@ export const SwapperA = (props: SwapperAProps) => {
             swapperBAddress,
             "", // memo can be set after rebuild on exchange submit
             server,
-            props.networkDetails.network,
+            props.networkDetails.networkPassphrase,
             txBuilder,
           );
 

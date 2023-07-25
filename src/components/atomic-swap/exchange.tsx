@@ -46,7 +46,6 @@ export const Exchange = (props: ExchangeProps) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
 
-  // TODO: refactor, keys should be kept local in all steps
   const [exchangeKey, setExchangeKey] = React.useState("");
 
   bc.onmessage = (messageEvent) => {

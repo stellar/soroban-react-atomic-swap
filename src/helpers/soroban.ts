@@ -225,7 +225,7 @@ export const buildContractAuth = async (
 
           // Fetch the current contract nonce/ledger seq
           server.getLedgerEntries([key]).then((response) => {
-            if (response.entries.length) {
+            if (response.entries && response.entries.length) {
               const parsed = xdr.LedgerEntryData.fromXDR(
                 response.entries[0].xdr,
                 "base64",
@@ -252,6 +252,7 @@ export const buildContractAuth = async (
             signerPubKey,
             kit,
           );
+
           const authEntry = new xdr.SorobanAuthorizationEntry({
             credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
               new xdr.SorobanAddressCredentials({
@@ -260,10 +261,18 @@ export const buildContractAuth = async (
                 signatureExpirationLedger:
                   hashIDPreimageEnvelope.signatureExpirationLedger(),
                 signatureArgs: [
-                  nativeToScVal({
-                    public_key: signerPubKey,
-                    signature,
-                  }),
+                  nativeToScVal(
+                    {
+                      public_key: Buffer.from(signerPubKey, "base64"),
+                      signature: Buffer.from(signature, "base64"),
+                    },
+                    {
+                      type: {
+                        public_key: ["symbol", null],
+                        signature: ["symbol", null],
+                      },
+                    } as any,
+                  ),
                 ],
               }),
             ),
