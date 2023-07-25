@@ -118,7 +118,7 @@ export const SwapperA = (props: SwapperAProps) => {
             tokenB,
             pubKey,
             swapperBAddress,
-            "", // memo will be set after rebuild on exchange submit
+            "", // memo can be set after rebuild on exchange submit
             server,
             props.networkDetails.network,
             txBuilder,

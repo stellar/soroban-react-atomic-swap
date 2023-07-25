@@ -1,5 +1,13 @@
 import React, { ChangeEvent } from "react";
 import {
+  Memo,
+  MemoType,
+  Operation,
+  Transaction,
+  TransactionBuilder,
+  xdr,
+} from "soroban-client";
+import {
   Button,
   Card,
   Icon,
@@ -125,7 +133,19 @@ export const Exchange = (props: ExchangeProps) => {
 
           setIsSubmitting(true);
 
-          const _signedXdr = await signTx(signedTx, exchangeKey, props.swkKit);
+          const tx = TransactionBuilder.fromXDR(
+            xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
+            props.networkDetails.networkPassphrase,
+          ) as Transaction<Memo<MemoType>, Operation[]>;
+          const preparedTransaction = await server.prepareTransaction(
+            tx,
+            props.networkDetails.networkPassphrase,
+          );
+          const _signedXdr = await signTx(
+            preparedTransaction.toXDR(),
+            exchangeKey,
+            props.swkKit,
+          );
 
           try {
             const result = await submitTx(

@@ -308,7 +308,6 @@ export const signContractAuth = async (
   const rawInvokeHostFunctionOp = tx
     .operations[0] as Operation.InvokeHostFunction;
 
-  console.log(rawInvokeHostFunctionOp);
   const auth = rawInvokeHostFunctionOp.auth ? rawInvokeHostFunctionOp.auth : [];
   const signedAuth = await buildContractAuth(
     auth,
@@ -318,7 +317,6 @@ export const signContractAuth = async (
     server,
     kit,
   );
-  console.log(signedAuth);
 
   txnBuilder.addOperation(
     Operation.invokeHostFunction({
