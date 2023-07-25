@@ -37,6 +37,7 @@ interface SwapperBProps {
 }
 
 export const SwapperB = (props: SwapperBProps) => {
+  const [pubKey, setPubKey] = React.useState("");
   const [signedTx, setSignedTx] = React.useState("");
   const [contractID, setContractID] = React.useState("");
   const [swapArgs, setSwapArgs] = React.useState(
@@ -44,14 +45,33 @@ export const SwapperB = (props: SwapperBProps) => {
   );
   const [tokenASymbol, setTokenASymbol] = React.useState("");
   const [tokenBSymbol, setTokenBSymbol] = React.useState("");
-  const [signedAuth, setSignedAuth] = React.useState("");
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
 
-  const connect = async () => {
+  const signAuthEntry = async () => {
+    props.setError(null);
+
+    const server = getServer(props.networkDetails);
+    const tx = TransactionBuilder.fromXDR(
+      xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
+      props.networkDetails.networkPassphrase,
+    ) as Transaction<Memo<MemoType>, Operation[]>;
+
+    const auth = await signContractAuth(
+      contractID,
+      pubKey,
+      tx,
+      server,
+      props.networkDetails.networkPassphrase,
+      props.swkKit,
+    );
+    return auth.toEnvelope().toXDR("base64");
+  };
+
+  const connect = () => {
     props.setError(null);
 
     // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    await props.swkKit.openModal({
+    props.swkKit.openModal({
       allowedWallets: [
         WalletType.ALBEDO,
         WalletType.FREIGHTER,
@@ -63,24 +83,15 @@ export const SwapperB = (props: SwapperBProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          props.swkKit.setNetwork(WalletNetwork.FUTURENET);
 
           const server = getServer(props.networkDetails);
           const tx = TransactionBuilder.fromXDR(
             xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
-          const auth = await signContractAuth(
-            contractID,
-            publicKey,
-            tx,
-            server,
-            props.networkDetails.networkPassphrase,
-            props.swkKit,
-          );
-          setSignedAuth(auth.toEnvelope().toXDR("base64"));
           const args = getArgsFromEnvelope(
-            auth.toEnvelope().toXDR("base64"),
+            tx.toEnvelope().toXDR("base64"),
             props.networkDetails.networkPassphrase,
           );
           setSwapArgs(args);
@@ -113,6 +124,7 @@ export const SwapperB = (props: SwapperBProps) => {
 
           // set pubkey in parent to display active profile
           props.setPubKey(publicKey);
+          setPubKey(publicKey);
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);
@@ -150,8 +162,9 @@ export const SwapperB = (props: SwapperBProps) => {
         );
       }
       case 2: {
-        const signWithWallet = () => {
+        const signWithWallet = async () => {
           try {
+            const signedAuth = await signAuthEntry();
             bc.postMessage({
               type: ChannelMessageType.SignedTx,
               data: {

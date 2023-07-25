@@ -248,14 +248,12 @@ export const buildContractAuth = async (
 
           const preimageHash = hash(hashIDPreimageEnvelope.toXDR("raw"));
 
-          console.log(preimageHash.toString("base64"));
           // eslint-disable-next-line no-await-in-loop
           const signature = await signTx(
             preimageHash.toString("base64"),
             signerPubKey,
             kit,
           );
-          console.log("entry");
           const authEntry = new xdr.SorobanAuthorizationEntry({
             credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
               new xdr.SorobanAddressCredentials({
