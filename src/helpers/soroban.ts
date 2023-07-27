@@ -18,7 +18,8 @@ import {
   Transaction,
   TransactionBuilder,
   xdr,
-  XdrLargeInt,
+  scValToBigInt,
+  ScInt,
 } from "soroban-client";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
@@ -52,12 +53,7 @@ export const accountToScVal = (account: string) =>
   new Address(account).toScVal();
 
 export const valueToI128String = (value: xdr.ScVal) =>
-  new XdrLargeInt("i128", [
-    BigInt(value.i128().lo().low),
-    BigInt(value.i128().lo().high),
-    BigInt(value.i128().hi().low),
-    BigInt(value.i128().hi().high),
-  ]).toString();
+  scValToBigInt(value).toString();
 
 // Get a server configfured for a specific network
 export const getServer = (networkDetails: NetworkDetails) =>
@@ -151,10 +147,10 @@ export const buildSwap = async (
           accountToScVal(swapperBPubKey),
           accountToScVal(contractA.contractId()),
           accountToScVal(contractB.contractId()),
-          nativeToScVal(tokenA.amount, { type: "i128" }),
-          nativeToScVal(tokenA.minAmount, { type: "i128" }),
-          nativeToScVal(tokenB.amount, { type: "i128" }),
-          nativeToScVal(tokenB.minAmount, { type: "i128" }),
+          new ScInt(tokenA.amount).toI128(),
+          new ScInt(tokenA.minAmount).toI128(),
+          new ScInt(tokenB.amount).toI128(),
+          new ScInt(tokenB.minAmount).toI128(),
         ],
       ),
     )
