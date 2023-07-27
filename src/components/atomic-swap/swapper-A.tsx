@@ -83,7 +83,7 @@ export const SwapperA = (props: SwapperAProps) => {
         return;
       }
       default:
-        console.log("message type unknown");
+        console.log(`message type unknown, ignoring ${type}`);
     }
   };
 

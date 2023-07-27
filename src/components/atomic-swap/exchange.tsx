@@ -53,10 +53,6 @@ export const Exchange = (props: ExchangeProps) => {
     const { data, type } = messageEvent.data;
 
     switch (type) {
-      case ChannelMessageType.TxSim: {
-        console.log(data.sim);
-        return;
-      }
       case ChannelMessageType.Footprint: {
         setFootprint(data.footprint);
         return;
@@ -67,15 +63,15 @@ export const Exchange = (props: ExchangeProps) => {
         return;
       }
       default:
-        console.log("message type unknown");
+        console.log(`message type unknown, ignoring ${type}`);
     }
   };
 
-  const connect = async () => {
+  const connect = () => {
     props.setError(null);
 
     // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    await props.swkKit.openModal({
+    props.swkKit.openModal({
       allowedWallets: [
         WalletType.ALBEDO,
         WalletType.FREIGHTER,
@@ -87,7 +83,7 @@ export const Exchange = (props: ExchangeProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          props.swkKit.setNetwork(WalletNetwork.FUTURENET);
 
           // also set pubkey in parent to display active profile
           props.setPubKey(publicKey);
@@ -147,39 +143,13 @@ export const Exchange = (props: ExchangeProps) => {
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
 
-          const _txSim = await server.simulateTransaction(tx);
-
-          console.log(footprint);
+          const txSim = await server.simulateTransaction(tx);
           const preparedTransaction = assembleTransaction(
             tx,
             props.networkDetails.networkPassphrase,
-            _txSim,
+            txSim,
             xdr.LedgerFootprint.fromXDR(Buffer.from(footprint, "base64")),
           );
-
-          // const op = preparedTransaction.operations[0] as Operation.InvokeHostFunction
-          // const auth = op.auth ? op.auth : [];
-          // const credentialAddressEntry = auth.find(a => a.credentials().switch().name === "sorobanCredentialsAddress")!
-          // const sigArgs = credentialAddressEntry.credentials().address().signatureArgs()
-          // const { signature, ...rest } = scValToNative(sigArgs[0])
-          // const expiration = 98002 + 1000000
-          // const passPhraseHash = hash(Buffer.from(props.networkDetails.networkPassphrase));
-          // const invocation = credentialAddressEntry.rootInvocation();
-          // const entryNonce = credentialAddressEntry.credentials().address().nonce();
-          // const hashIDPreimageAuth =
-          //   new xdr.HashIdPreimageSorobanAuthorization({
-          //     networkId: Buffer.from(passPhraseHash).subarray(0, 32),
-          //     invocation,
-          //     nonce: entryNonce,
-          //     signatureExpirationLedger: expiration,
-          //   });
-
-          // const preimage = xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(hashIDPreimageAuth)
-          // const preimageHash = hash(preimage.toXDR("raw"));
-
-          // const _keypair = Keypair.fromSecret("SDAKIKDBVRL7J2JSDX2CJ4VQREGULIKUDXMV44PRE5PIX26L5O2STV6L")
-          // console.log(signature, rest)
-          // console.log(_keypair.verify(preimageHash, signature))
 
           const _signedXdr = await signTx(
             preparedTransaction.toXDR(),

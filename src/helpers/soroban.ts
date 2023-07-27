@@ -181,9 +181,6 @@ export const buildSwap = async (
     "base64",
   );
 
-  console.log(sorobanTxData.resources());
-  console.log(sorobanTxData.resources().footprint());
-
   return {
     preparedTransaction,
     footprint: sorobanTxData.resources().footprint().toXDR("base64"),
@@ -272,18 +269,12 @@ export const buildContractAuth = async (
             );
           const preimageHash = hash(preimage.toXDR("raw"));
 
-          // thanks linter
-          console.log(kit, signTx);
           // eslint-disable-next-line no-await-in-loop
-          // const signature = await signTx(
-          //   preimageHash.toString("base64"),
-          //   signerPubKey,
-          //   kit,
-          // );
-
-          // use this until freighter can sign blobs
-          const _keypair = Keypair.fromSecret("S..");
-          const signature = _keypair.sign(preimageHash);
+          const signature = (await signTx(
+            preimageHash.toString("base64"),
+            signerPubKey,
+            kit,
+          )) as any as { data: number[] }; // not a string in this instance
 
           const authEntry = new xdr.SorobanAuthorizationEntry({
             credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
@@ -296,7 +287,7 @@ export const buildContractAuth = async (
                   nativeToScVal(
                     {
                       public_key: StrKey.decodeEd25519PublicKey(signerPubKey),
-                      signature,
+                      signature: new Uint8Array(signature.data),
                     },
                     {
                       type: {

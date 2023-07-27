@@ -2,7 +2,6 @@ export enum ChannelMessageType {
   ContractID = "contract-id",
   BuiltTx = "built-tx",
   SignedTx = "signed-tx",
-  TxSim = "tx-sim",
   Footprint = "footprint",
 }
 
