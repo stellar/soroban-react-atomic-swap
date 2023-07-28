@@ -315,10 +315,6 @@ export const signContractAuth = async (
     minAccountSequenceLedgerGap: tx.minAccountSequenceLedgerGap,
   });
 
-  if (!tx.operations.length) {
-    return txnBuilder.build();
-  }
-
   // Soroban transaction can only have 1 operation
   const rawInvokeHostFunctionOp = tx
     .operations[0] as Operation.InvokeHostFunction;
