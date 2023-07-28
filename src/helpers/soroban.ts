@@ -5,7 +5,6 @@ import {
   Contract,
   FeeBumpTransaction,
   hash,
-  Keypair,
   Memo,
   MemoType,
   nativeToScVal,
@@ -209,13 +208,11 @@ export const buildContractAuth = async (
   for (const entry of authEntries) {
     const entryAddress = entry.credentials().address().address().accountId();
     const entryNonce = entry.credentials().address().nonce();
-    const signerKeyPair = Keypair.fromPublicKey(signerPubKey);
 
     if (
       entry.credentials().switch() ===
         xdr.SorobanCredentialsType.sorobanCredentialsAddress() &&
-      signerKeyPair.publicKey() ===
-        StrKey.encodeEd25519PublicKey(entryAddress.ed25519())
+      signerPubKey === StrKey.encodeEd25519PublicKey(entryAddress.ed25519())
     ) {
       let expirationLedgerSeq = 0;
 
