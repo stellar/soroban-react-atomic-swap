@@ -1,12 +1,13 @@
-import React, { ChangeEvent } from "react";
+import React from "react";
 import {
-  Button,
-  Heading,
-  Select,
-  Input,
-  Profile,
-} from "@stellar/design-system";
-import BigNumber from "bignumber.js";
+  Memo,
+  MemoType,
+  Operation,
+  Transaction,
+  TransactionBuilder,
+  xdr,
+} from "soroban-client";
+import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
   WalletNetwork,
   WalletType,
@@ -17,15 +18,13 @@ import {
 import { bc, ChannelMessageType } from "helpers/channel";
 import {
   getServer,
-  getTxBuilder,
-  BASE_FEE,
-  buildSwap,
   signContractAuth,
+  getArgsFromEnvelope,
 } from "helpers/soroban";
 import { NetworkDetails } from "helpers/network";
 import { ERRORS } from "../../helpers/error";
 
-type StepCount = 1 | 2 | 3 | 4;
+type StepCount = 1 | 2;
 
 interface SwapperAProps {
   networkDetails: NetworkDetails;
@@ -36,15 +35,14 @@ interface SwapperAProps {
 
 export const SwapperA = (props: SwapperAProps) => {
   const [pubKey, setPubKey] = React.useState("");
+  const [baseTx, setBaseTx] = React.useState(
+    {} as Transaction<Memo<MemoType>, Operation[]>,
+  );
   const [contractID, setContractID] = React.useState("");
-  const [tokenAAddress, setTokenAAddress] = React.useState("");
-  const [amountA, setAmountA] = React.useState("");
-  const [minAmountA, setMinAmountA] = React.useState("");
-  const [tokenBAddress, setTokenBAddress] = React.useState("");
-  const [amountB, setAmountB] = React.useState("");
-  const [minAmountB, setMinAmountB] = React.useState("");
-  const [swapperBAddress, setSwapperBAddress] = React.useState("");
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
+  const [swapArgs, setSwapArgs] = React.useState(
+    {} as ReturnType<typeof getArgsFromEnvelope>,
+  );
 
   const connect = async () => {
     props.setError(null);
@@ -79,7 +77,19 @@ export const SwapperA = (props: SwapperAProps) => {
     const { data, type } = messageEvent.data;
     switch (type) {
       case ChannelMessageType.ContractID: {
-        setContractID(data);
+        setContractID(data.contractID);
+        const tx = TransactionBuilder.fromXDR(
+          xdr.TransactionEnvelope.fromXDR(data.baseTx, "base64"),
+          props.networkDetails.networkPassphrase,
+        ) as Transaction<Memo<MemoType>, Operation[]>;
+        setBaseTx(tx);
+
+        const args = getArgsFromEnvelope(
+          tx.toEnvelope().toXDR("base64"),
+          props.networkDetails.networkPassphrase,
+        );
+        setSwapArgs(args);
+
         return;
       }
       default:
@@ -89,46 +99,15 @@ export const SwapperA = (props: SwapperAProps) => {
 
   function renderStep(step: StepCount) {
     switch (step) {
-      case 4: {
+      case 2: {
         const signWithWallet = async () => {
           const server = getServer(props.networkDetails);
-          // Gets a transaction builder and use it to add a "swap" operation and build the corresponding XDR
-          const txBuilder = await getTxBuilder(
-            pubKey,
-            BASE_FEE,
-            server,
-            props.networkDetails.networkPassphrase,
-          );
-
-          const tokenA = {
-            id: tokenAAddress,
-            amount: new BigNumber(amountA).toNumber(),
-            minAmount: new BigNumber(minAmountA).toNumber(),
-          };
-
-          const tokenB = {
-            id: tokenBAddress,
-            amount: new BigNumber(amountB).toNumber(),
-            minAmount: new BigNumber(minAmountB).toNumber(),
-          };
-
-          const { preparedTransaction, footprint } = await buildSwap(
-            contractID,
-            tokenA,
-            tokenB,
-            pubKey,
-            swapperBAddress,
-            "", // memo can be set after rebuild on exchange submit
-            server,
-            props.networkDetails.networkPassphrase,
-            txBuilder,
-          );
 
           try {
             const signedTx = await signContractAuth(
               contractID,
               pubKey,
-              preparedTransaction,
+              baseTx,
               server,
               props.networkDetails.networkPassphrase,
               props.swkKit,
@@ -144,12 +123,6 @@ export const SwapperA = (props: SwapperAProps) => {
                   data: {
                     contractID,
                     signedTx: signedTx.toEnvelope().toXDR("base64"),
-                  },
-                });
-                bc.postMessage({
-                  type: ChannelMessageType.Footprint,
-                  data: {
-                    footprint,
                   },
                 });
               };
@@ -172,30 +145,38 @@ export const SwapperA = (props: SwapperAProps) => {
               <div className="tx-detail-item address-a">
                 <p className="detail-header">Address A</p>
                 <div className="address-a-identicon">
-                  <Profile isShort publicAddress={tokenAAddress} size="sm" />
+                  <Profile
+                    isShort
+                    publicAddress={swapArgs.addressA}
+                    size="sm"
+                  />
                 </div>
               </div>
               <div className="tx-detail-item">
                 <p className="detail-header">Amount A</p>
-                <p className="detail-value">{amountA}</p>
+                <p className="detail-value">{swapArgs.amountA}</p>
               </div>
               <div className="tx-detail-item">
                 <p className="detail-header">Min Amount A</p>
-                <p className="detail-value">{minAmountA}</p>
+                <p className="detail-value">{swapArgs.minAForB}</p>
               </div>
               <div className="tx-detail-item address-b">
                 <p className="detail-header">Address B</p>
                 <div className="address-b-identicon">
-                  <Profile isShort publicAddress={tokenBAddress} size="sm" />
+                  <Profile
+                    isShort
+                    publicAddress={swapArgs.addressB}
+                    size="sm"
+                  />
                 </div>
               </div>
               <div className="tx-detail-item">
                 <p className="detail-header">Amount B</p>
-                <p className="detail-value">{amountB}</p>
+                <p className="detail-value">{swapArgs.amountB}</p>
               </div>
               <div className="tx-detail-item">
                 <p className="detail-header">Min Amount B</p>
-                <p className="detail-value">{minAmountB}</p>
+                <p className="detail-value">{swapArgs.minBForA}</p>
               </div>
             </div>
             <div className="submit-row">
@@ -206,126 +187,6 @@ export const SwapperA = (props: SwapperAProps) => {
                 onClick={signWithWallet}
               >
                 Sign with Wallet
-              </Button>
-            </div>
-          </>
-        );
-      }
-      case 3: {
-        const handleSwapperBAddress = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setSwapperBAddress(event.target.value);
-        };
-        const handleTokenBChange = (event: ChangeEvent<HTMLInputElement>) => {
-          setTokenBAddress(event.target.value);
-        };
-        const handleTokenBAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setAmountB(event.target.value);
-        };
-        const handleTokenBMinAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setMinAmountB(event.target.value);
-        };
-
-        return (
-          <>
-            <Heading as="h1" size="sm">
-              Choose Token B
-            </Heading>
-            <Input
-              fieldSize="md"
-              id="swapper-b-address"
-              label="Swapper B Address"
-              value={swapperBAddress}
-              onChange={handleSwapperBAddress}
-            />
-            <Input
-              fieldSize="md"
-              id="token-b-id"
-              label="Token ID"
-              value={tokenBAddress}
-              onChange={handleTokenBChange}
-            />
-            <Input
-              fieldSize="md"
-              id="token-b-amount"
-              label="Amount"
-              value={amountB}
-              onChange={handleTokenBAmountChange}
-            />
-            <Input
-              fieldSize="md"
-              id="token-b-min-amount"
-              label="Min Amount"
-              value={minAmountB}
-              onChange={handleTokenBMinAmountChange}
-            />
-            <div className="submit-row">
-              <Button
-                size="md"
-                variant="tertiary"
-                isFullWidth
-                onClick={() => setStepCount((stepCount + 1) as StepCount)}
-              >
-                Next
-              </Button>
-            </div>
-          </>
-        );
-      }
-      case 2: {
-        const handleTokenAChange = (event: ChangeEvent<HTMLInputElement>) => {
-          setTokenAAddress(event.target.value);
-        };
-        const handleTokenAAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setAmountA(event.target.value);
-        };
-        const handleTokenAMinAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setMinAmountA(event.target.value);
-        };
-
-        return (
-          <>
-            <Heading as="h1" size="sm">
-              Choose Token A
-            </Heading>
-            <Input
-              fieldSize="md"
-              id="token-a-id"
-              label="Token ID"
-              value={tokenAAddress}
-              onChange={handleTokenAChange}
-            />
-            <Input
-              fieldSize="md"
-              id="token-a-amount"
-              label="Amount"
-              value={amountA}
-              onChange={handleTokenAAmountChange}
-            />
-            <Input
-              fieldSize="md"
-              id="token-a-min-amount"
-              label="Min Amount"
-              value={minAmountA}
-              onChange={handleTokenAMinAmountChange}
-            />
-            <div className="submit-row">
-              <Button
-                size="md"
-                variant="tertiary"
-                isFullWidth
-                onClick={() => setStepCount((stepCount + 1) as StepCount)}
-              >
-                Next
               </Button>
             </div>
           </>

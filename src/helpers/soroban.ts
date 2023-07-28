@@ -210,7 +210,6 @@ export const buildContractAuth = async (
 ) => {
   const signedAuthEntries = [];
 
-  console.dir(authEntries, { depth: 5 });
   if (authEntries.length) {
     for (const entry of authEntries) {
       if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
