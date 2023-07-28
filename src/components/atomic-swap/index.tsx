@@ -12,29 +12,40 @@ interface AtomicSwapProps {
   error: string | null;
 }
 
-export const AtomicSwap = (props: AtomicSwapProps) => (
-  <>
-    {props.hasHeader && (
-      <Layout.Header hasThemeSwitch projectId="soroban-react-atomic-swap" />
-    )}
-    <div className="Layout__inset account-badge-row">
-      {props.pubKey !== null && (
-        <Profile isShort publicAddress={props.pubKey} size="sm" />
+export const AtomicSwap = (props: AtomicSwapProps) => {
+  const isOnExchangeTab =
+    !location.pathname.includes("swapper-a") &&
+    !location.pathname.includes("swapper-b");
+  return (
+    <>
+      {props.hasHeader && (
+        <Layout.Header hasThemeSwitch projectId="soroban-react-atomic-swap" />
       )}
-    </div>
-    <div className="Layout__inset layout">
-      <div className="atomic-swap">
-        <Card variant="primary">
-          <Outlet />
-        </Card>
-      </div>
-      {props.error !== null &&
-        createPortal(
-          <div className="notification-container">
-            <Notification title={props.error!} variant="error" />
-          </div>,
-          document.getElementById("root")!,
+      <div className="Layout__inset account-badge-row">
+        {props.pubKey !== null && (
+          <Profile isShort publicAddress={props.pubKey} size="sm" />
         )}
-    </div>
-  </>
-);
+      </div>
+      <div className="Layout__inset layout">
+        <div className="atomic-swap">
+          {isOnExchangeTab && (
+            <Notification
+              title="In this tab, you are acting as the exchange."
+              variant="primary"
+            />
+          )}
+          <Card variant="primary">
+            <Outlet />
+          </Card>
+        </div>
+        {props.error !== null &&
+          createPortal(
+            <div className="notification-container">
+              <Notification title={props.error!} variant="error" />
+            </div>,
+            document.getElementById("root")!,
+          )}
+      </div>
+    </>
+  );
+};
