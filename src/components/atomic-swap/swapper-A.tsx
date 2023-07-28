@@ -5,7 +5,6 @@ import {
   Operation,
   Transaction,
   TransactionBuilder,
-  xdr,
 } from "soroban-client";
 import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
@@ -79,7 +78,7 @@ export const SwapperA = (props: SwapperAProps) => {
       case ChannelMessageType.ContractID: {
         setContractID(data.contractID);
         const tx = TransactionBuilder.fromXDR(
-          xdr.TransactionEnvelope.fromXDR(data.baseTx, "base64"),
+          data.baseTx,
           props.networkDetails.networkPassphrase,
         ) as Transaction<Memo<MemoType>, Operation[]>;
         setBaseTx(tx);

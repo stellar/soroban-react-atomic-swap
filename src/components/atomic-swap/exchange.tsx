@@ -153,7 +153,7 @@ export const Exchange = (props: ExchangeProps) => {
           setIsSubmitting(true);
 
           const tx = TransactionBuilder.fromXDR(
-            xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
+            signedTx,
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
 

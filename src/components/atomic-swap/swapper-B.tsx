@@ -6,7 +6,6 @@ import {
   Memo,
   MemoType,
   Operation,
-  xdr,
 } from "soroban-client";
 import {
   WalletNetwork,
@@ -52,7 +51,7 @@ export const SwapperB = (props: SwapperBProps) => {
 
     const server = getServer(props.networkDetails);
     const tx = TransactionBuilder.fromXDR(
-      xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
+      signedTx,
       props.networkDetails.networkPassphrase,
     ) as Transaction<Memo<MemoType>, Operation[]>;
 
@@ -87,7 +86,7 @@ export const SwapperB = (props: SwapperBProps) => {
 
           const server = getServer(props.networkDetails);
           const tx = TransactionBuilder.fromXDR(
-            xdr.TransactionEnvelope.fromXDR(signedTx, "base64"),
+            signedTx,
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
           const args = getArgsFromEnvelope(
