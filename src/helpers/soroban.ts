@@ -206,99 +206,89 @@ export const buildContractAuth = async (
 ) => {
   const signedAuthEntries = [];
 
-  if (authEntries.length) {
-    for (const entry of authEntries) {
-      if (entry.credentials().switch().name === "sorobanCredentialsAddress") {
-        const entryAddress = entry
-          .credentials()
-          .address()
-          .address()
-          .accountId();
-        const entryNonce = entry.credentials().address().nonce();
-        const signerKeyPair = Keypair.fromPublicKey(signerPubKey);
+  for (const entry of authEntries) {
+    const entryAddress = entry.credentials().address().address().accountId();
+    const entryNonce = entry.credentials().address().nonce();
+    const signerKeyPair = Keypair.fromPublicKey(signerPubKey);
 
-        if (
-          signerKeyPair.xdrPublicKey().toXDR("hex") ===
-          entryAddress.toXDR("hex")
-        ) {
-          let expirationLedgerSeq = 0;
+    if (
+      entry.credentials().switch() ===
+        xdr.SorobanCredentialsType.sorobanCredentialsAddress() &&
+      signerKeyPair.publicKey() ===
+        StrKey.encodeEd25519PublicKey(entryAddress.ed25519())
+    ) {
+      let expirationLedgerSeq = 0;
 
-          const key = xdr.LedgerKey.contractData(
-            new xdr.LedgerKeyContractData({
-              contract: new Contract(contractID).address().toScAddress(),
-              key: xdr.ScVal.scvLedgerKeyContractInstance(),
-              durability: xdr.ContractDataDurability.persistent(),
-              bodyType: xdr.ContractEntryBodyType.dataEntry(),
-            }),
-          );
+      const key = xdr.LedgerKey.contractData(
+        new xdr.LedgerKeyContractData({
+          contract: new Address(contractID).toScAddress(),
+          key: xdr.ScVal.scvLedgerKeyContractInstance(),
+          durability: xdr.ContractDataDurability.persistent(),
+          bodyType: xdr.ContractEntryBodyType.dataEntry(),
+        }),
+      );
 
-          // Fetch the current contract ledger seq
-          // eslint-disable-next-line no-await-in-loop
-          const entryRes = await server.getLedgerEntries([key]);
-          if (entryRes.entries && entryRes.entries.length) {
-            const parsed = xdr.LedgerEntryData.fromXDR(
-              entryRes.entries[0].xdr,
-              "base64",
-            );
-            expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
-          }
-
-          const passPhraseHash = hash(Buffer.from(networkPassphrase));
-          const invocation = entry.rootInvocation();
-          const hashIDPreimageAuth = new xdr.HashIdPreimageSorobanAuthorization(
-            {
-              networkId: Buffer.from(passPhraseHash).subarray(0, 32),
-              invocation,
-              nonce: entryNonce,
-              signatureExpirationLedger: expirationLedgerSeq,
-            },
-          );
-
-          const preimage =
-            xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(
-              hashIDPreimageAuth,
-            );
-          const preimageHash = hash(preimage.toXDR("raw"));
-
-          // eslint-disable-next-line no-await-in-loop
-          const signature = (await signTx(
-            preimageHash.toString("base64"),
-            signerPubKey,
-            kit,
-          )) as any as { data: number[] }; // not a string in this instance
-
-          const authEntry = new xdr.SorobanAuthorizationEntry({
-            credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
-              new xdr.SorobanAddressCredentials({
-                address: new Address(signerPubKey).toScAddress(),
-                nonce: hashIDPreimageAuth.nonce(),
-                signatureExpirationLedger:
-                  hashIDPreimageAuth.signatureExpirationLedger(),
-                signatureArgs: [
-                  nativeToScVal(
-                    {
-                      public_key: StrKey.decodeEd25519PublicKey(signerPubKey),
-                      signature: new Uint8Array(signature.data),
-                    },
-                    {
-                      type: {
-                        public_key: ["symbol", null],
-                        signature: ["symbol", null],
-                      },
-                    } as any,
-                  ),
-                ],
-              }),
-            ),
-            rootInvocation: invocation,
-          });
-          signedAuthEntries.push(authEntry);
-        } else {
-          signedAuthEntries.push(entry);
-        }
+      // Fetch the current contract ledger seq
+      // eslint-disable-next-line no-await-in-loop
+      const entryRes = await server.getLedgerEntries([key]);
+      if (entryRes.entries && entryRes.entries.length) {
+        const parsed = xdr.LedgerEntryData.fromXDR(
+          entryRes.entries[0].xdr,
+          "base64",
+        );
+        expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
       } else {
-        signedAuthEntries.push(entry);
+        throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
       }
+
+      const passPhraseHash = hash(Buffer.from(networkPassphrase));
+      const invocation = entry.rootInvocation();
+      const hashIDPreimageAuth = new xdr.HashIdPreimageSorobanAuthorization({
+        networkId: Buffer.from(passPhraseHash).subarray(0, 32),
+        invocation,
+        nonce: entryNonce,
+        signatureExpirationLedger: expirationLedgerSeq,
+      });
+
+      const preimage =
+        xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(hashIDPreimageAuth);
+      const preimageHash = hash(preimage.toXDR());
+
+      // eslint-disable-next-line no-await-in-loop
+      const signature = (await signTx(
+        preimageHash.toString("base64"),
+        signerPubKey,
+        kit,
+      )) as any as { data: number[] }; // not a string in this instance
+
+      const authEntry = new xdr.SorobanAuthorizationEntry({
+        credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+          new xdr.SorobanAddressCredentials({
+            address: new Address(signerPubKey).toScAddress(),
+            nonce: hashIDPreimageAuth.nonce(),
+            signatureExpirationLedger:
+              hashIDPreimageAuth.signatureExpirationLedger(),
+            signatureArgs: [
+              nativeToScVal(
+                {
+                  public_key: StrKey.decodeEd25519PublicKey(signerPubKey),
+                  signature: new Uint8Array(signature.data),
+                },
+                {
+                  type: {
+                    public_key: ["symbol", null],
+                    signature: ["symbol", null],
+                  },
+                } as any,
+              ),
+            ],
+          }),
+        ),
+        rootInvocation: invocation,
+      });
+      signedAuthEntries.push(authEntry);
+    } else {
+      signedAuthEntries.push(entry);
     }
   }
 
