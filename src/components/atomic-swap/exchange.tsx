@@ -38,7 +38,7 @@ import {
 } from "helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
-type StepCount = 1 | 2 | 3 | 4 | 5 | 6;
+type StepCount = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface ExchangeProps {
   networkDetails: NetworkDetails;
@@ -64,6 +64,8 @@ export const Exchange = (props: ExchangeProps) => {
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
   const [originalFootprint, setOriginalFootprint] = React.useState("");
+  const [fee, setFee] = React.useState(BASE_FEE);
+  const [memo, setMemo] = React.useState("");
 
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
@@ -112,7 +114,7 @@ export const Exchange = (props: ExchangeProps) => {
 
   function renderStep(step: StepCount) {
     switch (step) {
-      case 6: {
+      case 7: {
         return (
           <>
             <Heading as="h1" size="sm" addlClassName="title">
@@ -144,7 +146,7 @@ export const Exchange = (props: ExchangeProps) => {
           </>
         );
       }
-      case 5: {
+      case 6: {
         const submit = async () => {
           const server = getServer(props.networkDetails);
 
@@ -215,24 +217,12 @@ export const Exchange = (props: ExchangeProps) => {
           </>
         );
       }
-      case 4: {
-        const handleSwapperBAddress = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setSwapperBAddress(event.target.value);
+      case 5: {
+        const handleFeeChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setFee(event.target.value);
         };
-        const handleTokenBChange = (event: ChangeEvent<HTMLInputElement>) => {
-          setTokenBAddress(event.target.value);
-        };
-        const handleTokenBAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setAmountB(event.target.value);
-        };
-        const handleTokenBMinAmountChange = (
-          event: ChangeEvent<HTMLInputElement>,
-        ) => {
-          setMinAmountB(event.target.value);
+        const handleMemoChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setMemo(event.target.value);
         };
 
         const goToSwapperA = async () => {
@@ -263,7 +253,7 @@ export const Exchange = (props: ExchangeProps) => {
             tokenB,
             exchangeKey,
             swapperBAddress,
-            "", // memo can be set after rebuild on exchange submit
+            memo,
             server,
             props.networkDetails.networkPassphrase,
             txBuilder,
@@ -285,6 +275,58 @@ export const Exchange = (props: ExchangeProps) => {
               });
             };
           }
+        };
+
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Payment Settings
+            </Heading>
+            <Input
+              fieldSize="md"
+              id="input-fee"
+              label="Estimated Fee (XLM)"
+              value={fee}
+              onChange={handleFeeChange}
+            />
+            <Input
+              fieldSize="md"
+              id="input-memo"
+              label="Memo"
+              value={memo}
+              onChange={handleMemoChange}
+            />
+            <div className="submit-row-fee">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={goToSwapperA}
+              >
+                Build Swap
+              </Button>
+            </div>
+          </>
+        );
+      }
+      case 4: {
+        const handleSwapperBAddress = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setSwapperBAddress(event.target.value);
+        };
+        const handleTokenBChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setTokenBAddress(event.target.value);
+        };
+        const handleTokenBAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setAmountB(event.target.value);
+        };
+        const handleTokenBMinAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setMinAmountB(event.target.value);
         };
 
         return (
@@ -325,9 +367,9 @@ export const Exchange = (props: ExchangeProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={goToSwapperA}
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
               >
-                Build Swap
+                Next
               </Button>
             </div>
           </>
@@ -410,7 +452,7 @@ export const Exchange = (props: ExchangeProps) => {
                 isFullWidth
                 onClick={() => setStepCount((stepCount + 1) as StepCount)}
               >
-                Go to Swapper A
+                Next
               </Button>
             </div>
           </>
