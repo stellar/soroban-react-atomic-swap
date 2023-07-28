@@ -119,13 +119,13 @@ export const buildSwap = async (
   contractID: string,
   tokenA: {
     id: string;
-    amount: number;
-    minAmount: number;
+    amount: string;
+    minAmount: string;
   },
   tokenB: {
     id: string;
-    amount: number;
-    minAmount: number;
+    amount: string;
+    minAmount: string;
   },
   swapperAPubKey: string,
   swapperBPubKey: string,
@@ -167,10 +167,6 @@ export const buildSwap = async (
     networkPassphrase,
     sim,
   ) as Transaction<Memo<MemoType>, Operation[]>;
-  // const preparedTransaction = await server.prepareTransaction(
-  //   tx.build(),
-  //   networkPassphrase,
-  // );
 
   const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
     sim.transactionData,

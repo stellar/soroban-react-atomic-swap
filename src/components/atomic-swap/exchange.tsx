@@ -1,5 +1,4 @@
 import React, { ChangeEvent } from "react";
-import BigNumber from "bignumber.js";
 import {
   BASE_FEE,
   Memo,
@@ -237,14 +236,14 @@ export const Exchange = (props: ExchangeProps) => {
 
           const tokenA = {
             id: tokenAAddress,
-            amount: new BigNumber(amountA).toNumber(),
-            minAmount: new BigNumber(minAmountA).toNumber(),
+            amount: BigInt(amountA).toString(),
+            minAmount: BigInt(minAmountA).toString(),
           };
 
           const tokenB = {
             id: tokenBAddress,
-            amount: new BigNumber(amountB).toNumber(),
-            minAmount: new BigNumber(minAmountB).toNumber(),
+            amount: BigInt(amountB).toString(),
+            minAmount: BigInt(minAmountB).toString(),
           };
 
           const { preparedTransaction, footprint } = await buildSwap(
