@@ -1,5 +1,14 @@
 import React, { ChangeEvent } from "react";
 import {
+  BASE_FEE,
+  Memo,
+  MemoType,
+  Operation,
+  Transaction,
+  TransactionBuilder,
+  xdr,
+} from "soroban-client";
+import {
   Button,
   Card,
   Icon,
@@ -18,11 +27,17 @@ import {
 
 import { bc, ChannelMessageType } from "helpers/channel";
 import { copyContent } from "helpers/dom";
-import { NetworkDetails } from "helpers/network";
-import { getServer, submitTx } from "helpers/soroban";
+import { NetworkDetails, signTx } from "helpers/network";
+import {
+  getServer,
+  submitTx,
+  assembleTransaction,
+  getTxBuilder,
+  buildSwap,
+} from "helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
-type StepCount = 1 | 2 | 3 | 4;
+type StepCount = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface ExchangeProps {
   networkDetails: NetworkDetails;
@@ -38,24 +53,38 @@ export const Exchange = (props: ExchangeProps) => {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
 
+  const [exchangeKey, setExchangeKey] = React.useState("");
+
+  const [tokenAAddress, setTokenAAddress] = React.useState("");
+  const [amountA, setAmountA] = React.useState("");
+  const [minAmountA, setMinAmountA] = React.useState("");
+  const [tokenBAddress, setTokenBAddress] = React.useState("");
+  const [amountB, setAmountB] = React.useState("");
+  const [minAmountB, setMinAmountB] = React.useState("");
+  const [swapperBAddress, setSwapperBAddress] = React.useState("");
+  const [originalFootprint, setOriginalFootprint] = React.useState("");
+  const [fee, setFee] = React.useState(BASE_FEE);
+  const [memo, setMemo] = React.useState("");
+
   bc.onmessage = (messageEvent) => {
     const { data, type } = messageEvent.data;
+
     switch (type) {
       case ChannelMessageType.SignedTx: {
         setSignedTx(data.signedTx);
-        setStepCount(3);
+        setStepCount(5);
         return;
       }
       default:
-        console.log("message type unknown");
+        console.log(`message type unknown, ignoring ${type}`);
     }
   };
 
-  const connect = async () => {
+  const connect = () => {
     props.setError(null);
 
     // See https://github.com/Creit-Tech/Stellar-Wallets-Kit/tree/main for more options
-    await props.swkKit.openModal({
+    props.swkKit.openModal({
       allowedWallets: [
         WalletType.ALBEDO,
         WalletType.FREIGHTER,
@@ -67,10 +96,12 @@ export const Exchange = (props: ExchangeProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          props.swkKit.setNetwork(WalletNetwork.FUTURENET);
 
           // also set pubkey in parent to display active profile
           props.setPubKey(publicKey);
+          setExchangeKey(publicKey);
+
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);
@@ -82,7 +113,7 @@ export const Exchange = (props: ExchangeProps) => {
 
   function renderStep(step: StepCount) {
     switch (step) {
-      case 4: {
+      case 7: {
         return (
           <>
             <Heading as="h1" size="sm" addlClassName="title">
@@ -114,15 +145,36 @@ export const Exchange = (props: ExchangeProps) => {
           </>
         );
       }
-      case 3: {
+      case 6: {
         const submit = async () => {
           const server = getServer(props.networkDetails);
 
           setIsSubmitting(true);
 
+          const tx = TransactionBuilder.fromXDR(
+            signedTx,
+            props.networkDetails.networkPassphrase,
+          ) as Transaction<Memo<MemoType>, Operation[]>;
+
+          const txSim = await server.simulateTransaction(tx);
+          const preparedTransaction = assembleTransaction(
+            tx,
+            props.networkDetails.networkPassphrase,
+            txSim,
+            xdr.LedgerFootprint.fromXDR(
+              Buffer.from(originalFootprint, "base64"),
+            ),
+          );
+
+          const _signedXdr = await signTx(
+            preparedTransaction.toXDR(),
+            exchangeKey,
+            props.swkKit,
+          );
+
           try {
             const result = await submitTx(
-              signedTx,
+              _signedXdr,
               props.networkDetails.networkPassphrase,
               server,
             );
@@ -164,11 +216,49 @@ export const Exchange = (props: ExchangeProps) => {
           </>
         );
       }
-      case 2: {
-        const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-          setContractID(event.target.value);
+      case 5: {
+        const handleFeeChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setFee(event.target.value);
         };
-        const goToSwapperA = () => {
+        const handleMemoChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setMemo(event.target.value);
+        };
+
+        const goToSwapperA = async () => {
+          const server = getServer(props.networkDetails);
+          // Gets a transaction builder and use it to add a "swap" operation and build the corresponding XDR
+          const txBuilder = await getTxBuilder(
+            exchangeKey,
+            BASE_FEE,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+
+          const tokenA = {
+            id: tokenAAddress,
+            amount: BigInt(amountA).toString(),
+            minAmount: BigInt(minAmountA).toString(),
+          };
+
+          const tokenB = {
+            id: tokenBAddress,
+            amount: BigInt(amountB).toString(),
+            minAmount: BigInt(minAmountB).toString(),
+          };
+
+          const { preparedTransaction, footprint } = await buildSwap(
+            contractID,
+            tokenA,
+            tokenB,
+            exchangeKey,
+            swapperBAddress,
+            memo,
+            server,
+            props.networkDetails.networkPassphrase,
+            txBuilder,
+          );
+          setOriginalFootprint(footprint);
+
           const newWindow = window.open(
             `${window.location.origin}/swapper-a`,
             "_blank",
@@ -177,10 +267,170 @@ export const Exchange = (props: ExchangeProps) => {
             newWindow.onload = () => {
               bc.postMessage({
                 type: ChannelMessageType.ContractID,
-                data: contractID,
+                data: {
+                  baseTx: preparedTransaction.toEnvelope().toXDR("base64"),
+                  contractID,
+                },
               });
             };
           }
+        };
+
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Payment Settings
+            </Heading>
+            <Input
+              fieldSize="md"
+              id="input-fee"
+              label="Estimated Fee (XLM)"
+              value={fee}
+              onChange={handleFeeChange}
+            />
+            <Input
+              fieldSize="md"
+              id="input-memo"
+              label="Memo"
+              value={memo}
+              onChange={handleMemoChange}
+            />
+            <div className="submit-row-fee">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={goToSwapperA}
+              >
+                Build Swap
+              </Button>
+            </div>
+          </>
+        );
+      }
+      case 4: {
+        const handleSwapperBAddress = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setSwapperBAddress(event.target.value);
+        };
+        const handleTokenBChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setTokenBAddress(event.target.value);
+        };
+        const handleTokenBAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setAmountB(event.target.value);
+        };
+        const handleTokenBMinAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setMinAmountB(event.target.value);
+        };
+
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Choose Token B
+            </Heading>
+            <Input
+              fieldSize="md"
+              id="swapper-b-address"
+              label="Swapper B Address"
+              value={swapperBAddress}
+              onChange={handleSwapperBAddress}
+            />
+            <Input
+              fieldSize="md"
+              id="token-b-id"
+              label="Token ID"
+              value={tokenBAddress}
+              onChange={handleTokenBChange}
+            />
+            <Input
+              fieldSize="md"
+              id="token-b-amount"
+              label="Amount"
+              value={amountB}
+              onChange={handleTokenBAmountChange}
+            />
+            <Input
+              fieldSize="md"
+              id="token-b-min-amount"
+              label="Min Amount"
+              value={minAmountB}
+              onChange={handleTokenBMinAmountChange}
+            />
+            <div className="submit-row">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
+              >
+                Next
+              </Button>
+            </div>
+          </>
+        );
+      }
+      case 3: {
+        const handleTokenAChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setTokenAAddress(event.target.value);
+        };
+        const handleTokenAAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setAmountA(event.target.value);
+        };
+        const handleTokenAMinAmountChange = (
+          event: ChangeEvent<HTMLInputElement>,
+        ) => {
+          setMinAmountA(event.target.value);
+        };
+
+        return (
+          <>
+            <Heading as="h1" size="sm">
+              Choose Token A
+            </Heading>
+            <Input
+              fieldSize="md"
+              id="token-a-id"
+              label="Token ID"
+              value={tokenAAddress}
+              onChange={handleTokenAChange}
+            />
+            <Input
+              fieldSize="md"
+              id="token-a-amount"
+              label="Amount"
+              value={amountA}
+              onChange={handleTokenAAmountChange}
+            />
+            <Input
+              fieldSize="md"
+              id="token-a-min-amount"
+              label="Min Amount"
+              value={minAmountA}
+              onChange={handleTokenAMinAmountChange}
+            />
+            <div className="submit-row">
+              <Button
+                size="md"
+                variant="tertiary"
+                isFullWidth
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
+              >
+                Next
+              </Button>
+            </div>
+          </>
+        );
+      }
+      case 2: {
+        const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
+          setContractID(event.target.value);
         };
         return (
           <>
@@ -199,9 +449,9 @@ export const Exchange = (props: ExchangeProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={goToSwapperA}
+                onClick={() => setStepCount((stepCount + 1) as StepCount)}
               >
-                Go to Swapper A
+                Next
               </Button>
             </div>
           </>

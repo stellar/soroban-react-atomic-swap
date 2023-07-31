@@ -1,6 +1,8 @@
 export enum ChannelMessageType {
   ContractID = "contract-id",
+  BuiltTx = "built-tx",
   SignedTx = "signed-tx",
+  Footprint = "footprint",
 }
 
 export const BROADCAST_ID = "soroban-react-atomic-swap";

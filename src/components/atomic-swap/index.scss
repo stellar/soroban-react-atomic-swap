@@ -30,7 +30,11 @@
     width: 375px;
     min-height: 350px;
     height: fit-content;
-    margin-top: 5rem;
+    margin-top: 4rem;
+
+    .Notification {
+      margin-bottom: 1rem;
+    }
 
     .tx-details {
       display: flex;
