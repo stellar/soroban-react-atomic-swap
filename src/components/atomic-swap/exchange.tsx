@@ -72,7 +72,7 @@ export const Exchange = (props: ExchangeProps) => {
     switch (type) {
       case ChannelMessageType.SignedTx: {
         setSignedTx(data.signedTx);
-        setStepCount(5);
+        setStepCount(6);
         return;
       }
       default:
@@ -295,7 +295,7 @@ export const Exchange = (props: ExchangeProps) => {
               value={memo}
               onChange={handleMemoChange}
             />
-            <div className="submit-row-fee">
+            <div className="submit-row-exchange">
               <Button
                 size="md"
                 variant="tertiary"
