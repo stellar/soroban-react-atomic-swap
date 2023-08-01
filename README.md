@@ -60,7 +60,7 @@ To use the Atomic Swap DApp, follow these steps:
 
 <img src = "./public/img/freighter_settings.png" width="50%" height="50%"/>
 
-6. [Enable and add Soroban Tokens](https://soroban.stellar.org/docs/reference/freighter)
+6. [Enable and add Soroban Tokens](https://soroban.stellar.org/docs/reference/freighter#enable-soroban-tokens)
    in Freighter.
 
 7. To run the app and install dependencies you can run `yarn && yarn start`
