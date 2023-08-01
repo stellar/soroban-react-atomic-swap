@@ -8,7 +8,7 @@ import "./index.scss";
 
 interface AtomicSwapProps {
   hasHeader?: boolean;
-  pubKey: string | null;
+  pubKey: string;
   error: string | null;
 }
 
@@ -22,7 +22,7 @@ export const AtomicSwap = (props: AtomicSwapProps) => {
         <Layout.Header hasThemeSwitch projectId="soroban-react-atomic-swap" />
       )}
       <div className="Layout__inset account-badge-row">
-        {props.pubKey !== null && (
+        {props.pubKey.length > 0 && (
           <Profile isShort publicAddress={props.pubKey} size="sm" />
         )}
       </div>

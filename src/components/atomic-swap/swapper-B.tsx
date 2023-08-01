@@ -33,10 +33,10 @@ interface SwapperBProps {
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
   swkKit: StellarWalletsKit;
+  pubKey: string;
 }
 
 export const SwapperB = (props: SwapperBProps) => {
-  const [pubKey, setPubKey] = React.useState("");
   const [signedTx, setSignedTx] = React.useState("");
   const [contractID, setContractID] = React.useState("");
   const [swapArgs, setSwapArgs] = React.useState(
@@ -57,7 +57,7 @@ export const SwapperB = (props: SwapperBProps) => {
 
     const auth = await signContractAuth(
       contractID,
-      pubKey,
+      props.pubKey,
       tx,
       server,
       props.networkDetails.networkPassphrase,
@@ -121,9 +121,7 @@ export const SwapperB = (props: SwapperBProps) => {
           );
           setTokenBSymbol(symbolB);
 
-          // set pubkey in parent to display active profile
           props.setPubKey(publicKey);
-          setPubKey(publicKey);
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);

@@ -29,7 +29,7 @@ const App = (props: AppProps) => {
   const [selectedNetwork] = React.useState(FUTURENET_DETAILS);
 
   // Initial state, empty states for token/transaction details
-  const [activePubKey, setActivePubKey] = React.useState(null as string | null);
+  const [activePubKey, setActivePubKey] = React.useState("");
   const [error, setError] = React.useState(null as string | null);
 
   // Setup swc, user will set the desired wallet on connect
@@ -61,6 +61,7 @@ const App = (props: AppProps) => {
               setError={setError}
               setPubKey={setActivePubKey}
               swkKit={SWKKit}
+              pubKey={activePubKey}
             />
           ),
         },
@@ -72,6 +73,7 @@ const App = (props: AppProps) => {
               setError={setError}
               setPubKey={setActivePubKey}
               swkKit={SWKKit}
+              pubKey={activePubKey}
             />
           ),
         },
@@ -83,6 +85,7 @@ const App = (props: AppProps) => {
               setError={setError}
               setPubKey={setActivePubKey}
               swkKit={SWKKit}
+              pubKey={activePubKey}
             />
           ),
         },

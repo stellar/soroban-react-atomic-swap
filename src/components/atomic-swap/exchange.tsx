@@ -44,6 +44,7 @@ interface ExchangeProps {
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
   swkKit: StellarWalletsKit;
+  pubKey: string;
 }
 
 export const Exchange = (props: ExchangeProps) => {
@@ -52,8 +53,6 @@ export const Exchange = (props: ExchangeProps) => {
   const [txResultXDR, setTxResultXDR] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [stepCount, setStepCount] = React.useState(1 as StepCount);
-
-  const [exchangeKey, setExchangeKey] = React.useState("");
 
   const [tokenAAddress, setTokenAAddress] = React.useState("");
   const [amountA, setAmountA] = React.useState("");
@@ -97,10 +96,7 @@ export const Exchange = (props: ExchangeProps) => {
           const publicKey = await props.swkKit.getPublicKey();
 
           props.swkKit.setNetwork(WalletNetwork.FUTURENET);
-
-          // also set pubkey in parent to display active profile
           props.setPubKey(publicKey);
-          setExchangeKey(publicKey);
 
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
@@ -168,7 +164,7 @@ export const Exchange = (props: ExchangeProps) => {
 
           const _signedXdr = await signTx(
             preparedTransaction.toXDR(),
-            exchangeKey,
+            props.pubKey,
             props.swkKit,
           );
 
@@ -228,7 +224,7 @@ export const Exchange = (props: ExchangeProps) => {
           const server = getServer(props.networkDetails);
           // Gets a transaction builder and use it to add a "swap" operation and build the corresponding XDR
           const txBuilder = await getTxBuilder(
-            exchangeKey,
+            props.pubKey,
             BASE_FEE,
             server,
             props.networkDetails.networkPassphrase,
@@ -250,7 +246,7 @@ export const Exchange = (props: ExchangeProps) => {
             contractID,
             tokenA,
             tokenB,
-            exchangeKey,
+            props.pubKey,
             swapperBAddress,
             memo,
             server,
@@ -466,7 +462,7 @@ export const Exchange = (props: ExchangeProps) => {
             </Heading>
             <p>
               In this window, you’re acting as the “Exchange”. You’re going to
-              facilitate a trade by 2 parties.
+              facilitate a trade between 2 parties.
             </p>
             <Select
               disabled
