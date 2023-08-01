@@ -464,6 +464,10 @@ export const Exchange = (props: ExchangeProps) => {
             <Heading as="h1" size="sm">
               Swap Tokens
             </Heading>
+            <p>
+              In this window, you’re acting as the “Exchange”. You’re going to
+              facilitate a trade by 2 parties.
+            </p>
             <Select
               disabled
               fieldSize="md"
@@ -473,7 +477,7 @@ export const Exchange = (props: ExchangeProps) => {
             >
               <option>{props.networkDetails.network}</option>
             </Select>
-            <div className="submit-row">
+            <div className="submit-row-exchange">
               <Button
                 size="md"
                 variant="tertiary"
