@@ -258,6 +258,9 @@ export const SwapperB = (props: SwapperBProps) => {
             <Heading as="h1" size="sm">
               Choose Address B
             </Heading>
+            <p>
+              Now, in your wallet, switch to another address that owns Token B.
+            </p>
             <Select
               disabled
               fieldSize="md"

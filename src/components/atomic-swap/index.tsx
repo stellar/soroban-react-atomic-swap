@@ -30,7 +30,7 @@ export const AtomicSwap = (props: AtomicSwapProps) => {
         <div className="atomic-swap">
           {isOnExchangeTab && (
             <Notification
-              title="In this tab, you are acting as the exchange."
+              title="In this window, you’re acting as the “Exchange”. You’re going to facilitate a trade between 2 parties."
               variant="primary"
             />
           )}

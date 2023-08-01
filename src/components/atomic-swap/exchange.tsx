@@ -460,10 +460,6 @@ export const Exchange = (props: ExchangeProps) => {
             <Heading as="h1" size="sm">
               Swap Tokens
             </Heading>
-            <p>
-              In this window, you’re acting as the “Exchange”. You’re going to
-              facilitate a trade between 2 parties.
-            </p>
             <Select
               disabled
               fieldSize="md"

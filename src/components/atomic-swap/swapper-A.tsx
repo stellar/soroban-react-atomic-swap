@@ -196,6 +196,10 @@ export const SwapperA = (props: SwapperAProps) => {
             <Heading as="h1" size="sm">
               Choose Address A
             </Heading>
+            <p>
+              When swapping tokens, you generally have two addresses involved.
+            </p>
+            <p>Connect an address that owns token A.</p>
             <Select
               disabled
               fieldSize="md"
