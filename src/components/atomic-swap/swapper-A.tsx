@@ -30,10 +30,10 @@ interface SwapperAProps {
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
   swkKit: StellarWalletsKit;
+  pubKey: string;
 }
 
 export const SwapperA = (props: SwapperAProps) => {
-  const [pubKey, setPubKey] = React.useState("");
   const [baseTx, setBaseTx] = React.useState(
     {} as Transaction<Memo<MemoType>, Operation[]>,
   );
@@ -60,9 +60,7 @@ export const SwapperA = (props: SwapperAProps) => {
 
           await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
 
-          // also set pubkey in parent to display active profile
           props.setPubKey(publicKey);
-          setPubKey(publicKey);
           setStepCount((stepCount + 1) as StepCount);
         } catch (error) {
           console.log(error);
@@ -105,7 +103,7 @@ export const SwapperA = (props: SwapperAProps) => {
           try {
             const signedTx = await signContractAuth(
               contractID,
-              pubKey,
+              props.pubKey,
               baseTx,
               server,
               props.networkDetails.networkPassphrase,
@@ -198,6 +196,10 @@ export const SwapperA = (props: SwapperAProps) => {
             <Heading as="h1" size="sm">
               Choose Address A
             </Heading>
+            <p>
+              When swapping tokens, you generally have two addresses involved.
+            </p>
+            <p>Connect an address that owns token A.</p>
             <Select
               disabled
               fieldSize="md"
