@@ -30,7 +30,11 @@
     width: 375px;
     min-height: 350px;
     height: fit-content;
-    margin-top: 4rem;
+    margin-top: 2rem;
+
+    .Card {
+      height: auto;
+    }
 
     .Notification {
       margin-bottom: 1rem;
@@ -119,7 +123,7 @@
   }
 
   .submit-row {
-    margin-top: 6rem;
+    margin-top: 4rem;
   }
 
   .submit-row-exchange {

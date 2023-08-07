@@ -1,13 +1,12 @@
 import * as React from "react";
-import ReactDOM from "react-dom/client";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import {
   StellarWalletsKit,
   WalletNetwork,
   WalletType,
 } from "stellar-wallets-kit";
 
-import { AtomicSwap } from "components/atomic-swap";
+import { AtomicSwap } from "./components/atomic-swap";
 import { Exchange } from "./components/atomic-swap/exchange";
 import { SwapperA } from "./components/atomic-swap/swapper-A";
 import { SwapperB } from "./components/atomic-swap/swapper-B";
@@ -18,10 +17,12 @@ import "@stellar/design-system/build/styles.min.css";
 import "./index.scss";
 
 interface AppProps {
+  basePath?: string;
   hasHeader?: boolean;
 }
 
-const App = (props: AppProps) => {
+export const AppSubRouter = (props: AppProps) => {
+  const basePath = props.basePath || window.location.origin;
   // This is only needed when this component is consumed by other components that display a different header
   const hasHeader = props.hasHeader === undefined ? true : props.hasHeader;
 
@@ -45,43 +46,47 @@ const App = (props: AppProps) => {
     SWKKit.setNetwork(selectedNetwork.networkPassphrase as WalletNetwork);
   }, [selectedNetwork.networkPassphrase, SWKKit]);
 
-  const router = createBrowserRouter([
-    {
-      path: "/",
-      element: (
-        <AtomicSwap hasHeader={hasHeader} pubKey={activePubKey} error={error} />
-      ),
-      errorElement: <div>404!</div>,
-      children: [
-        {
-          index: true,
-          element: (
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <AtomicSwap
+            hasHeader={hasHeader}
+            pubKey={activePubKey}
+            error={error}
+          />
+        }
+      >
+        <Route
+          index
+          element={
             <Exchange
-              basePath={window.location.origin}
+              basePath={basePath}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
               swkKit={SWKKit}
               pubKey={activePubKey}
             />
-          ),
-        },
-        {
-          path: "swapper-a/",
-          element: (
+          }
+        />
+        <Route
+          path="swapper-a/"
+          element={
             <SwapperA
-              basePath={window.location.origin}
+              basePath={basePath}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
               swkKit={SWKKit}
               pubKey={activePubKey}
             />
-          ),
-        },
-        {
-          path: "swapper-b/",
-          element: (
+          }
+        />
+        <Route
+          path="swapper-b/"
+          element={
             <SwapperB
               networkDetails={selectedNetwork}
               setError={setError}
@@ -89,14 +94,9 @@ const App = (props: AppProps) => {
               swkKit={SWKKit}
               pubKey={activePubKey}
             />
-          ),
-        },
-      ],
-    },
-  ]);
-
-  return <RouterProvider router={router} />;
+          }
+        />
+      </Route>
+    </Routes>
+  );
 };
-
-const root = ReactDOM.createRoot(document.getElementById("root")!);
-root.render(<App />);

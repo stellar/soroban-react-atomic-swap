@@ -25,21 +25,22 @@ import {
   StellarWalletsKit,
 } from "stellar-wallets-kit";
 
-import { bc, ChannelMessageType } from "helpers/channel";
-import { copyContent } from "helpers/dom";
-import { NetworkDetails, signTx } from "helpers/network";
+import { bc, ChannelMessageType } from "../../helpers/channel";
+import { copyContent } from "../../helpers/dom";
+import { NetworkDetails, signTx } from "../../helpers/network";
 import {
   getServer,
   submitTx,
   assembleTransaction,
   getTxBuilder,
   buildSwap,
-} from "helpers/soroban";
+} from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
 type StepCount = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface ExchangeProps {
+  basePath: string;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
@@ -256,7 +257,7 @@ export const Exchange = (props: ExchangeProps) => {
           setOriginalFootprint(footprint);
 
           const newWindow = window.open(
-            `${window.location.origin}/swapper-a`,
+            `${props.basePath}/swapper-a`,
             "_blank",
           );
           if (newWindow) {

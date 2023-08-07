@@ -14,18 +14,19 @@ import {
   StellarWalletsKit,
 } from "stellar-wallets-kit";
 
-import { bc, ChannelMessageType } from "helpers/channel";
+import { bc, ChannelMessageType } from "../../helpers/channel";
 import {
   getServer,
   signContractAuth,
   getArgsFromEnvelope,
-} from "helpers/soroban";
-import { NetworkDetails } from "helpers/network";
+} from "../../helpers/soroban";
+import { NetworkDetails } from "../../helpers/network";
 import { ERRORS } from "../../helpers/error";
 
 type StepCount = 1 | 2;
 
 interface SwapperAProps {
+  basePath: string;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
@@ -110,7 +111,7 @@ export const SwapperA = (props: SwapperAProps) => {
               props.swkKit,
             );
             const newWindow = window.open(
-              `${window.location.origin}/swapper-b`,
+              `${props.basePath}/swapper-b`,
               "_blank",
             );
             if (newWindow) {
