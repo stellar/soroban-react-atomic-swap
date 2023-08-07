@@ -14,7 +14,8 @@ import {
   StellarWalletsKit,
 } from "stellar-wallets-kit";
 
-import { bc, ChannelMessageType } from "helpers/channel";
+import { NetworkDetails } from "helpers/network";
+import { bc, ChannelMessageType } from "../../helpers/channel";
 import {
   getArgsFromEnvelope,
   getServer,
@@ -22,8 +23,7 @@ import {
   getTxBuilder,
   signContractAuth,
   BASE_FEE,
-} from "helpers/soroban";
-import { NetworkDetails } from "helpers/network";
+} from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
 type StepCount = 1 | 2 | 3;
