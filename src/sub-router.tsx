@@ -15,6 +15,7 @@ import { FUTURENET_DETAILS } from "./helpers/network";
 
 import "@stellar/design-system/build/styles.min.css";
 import "./index.scss";
+import "./components/atomic-swap/index.scss";
 
 interface AppProps {
   basePath?: string;
