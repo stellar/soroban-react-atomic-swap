@@ -14,6 +14,13 @@ The Atomic Swap DApp relies on the following dependencies:
 
 - Freighter wallet(v5.0 or newer): https://www.freighter.app/
 
+You need access to/funds from the following contracts - Atomic Swap:
+https://github.com/stellar/soroban-examples/tree/main/atomic_swap Token:
+https://github.com/stellar/soroban-examples/tree/main/token
+
+This demo involves a minimum of 2 parties and 2 different tokens to swap between
+the parties.
+
 ## Features
 
 The Atomic Swap DApp offers the following features:

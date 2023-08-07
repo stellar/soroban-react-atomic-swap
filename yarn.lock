@@ -1394,6 +1394,11 @@
   resolved "https://registry.yarnpkg.com/@stellar/freighter-api/-/freighter-api-1.5.1.tgz#c3b97239a0ca35b70057280f2d914958addf7cf2"
   integrity sha512-WEnKEqd+xVLnOq6bJv+fLXod8JQyPjzpOKTpH4g7tG9MM1fmXzD3y2SXJlpCIw8kVqtiC4ynWOlSWX+TKO7KiQ==
 
+"@stellar/freighter-api@^1.6.0":
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/@stellar/freighter-api/-/freighter-api-1.6.0.tgz#14deceba47be041ed13a325aad6d05add6646a08"
+  integrity sha512-Z6CRY+3+whzMspda6PiHEc4Rs9tdQkHLin9FopdnHhij/FEEAK+IiuF8Ki2ROcQweXdazb8N237aSim10s+Zgw==
+
 "@stellar/prettier-config@^1.0.1":
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/@stellar/prettier-config/-/prettier-config-1.0.1.tgz#498a66dc13c66859e3787dabdf958233ddbe9253"
@@ -7157,12 +7162,12 @@ stellar-base@10.0.0-soroban.4:
     sodium-native "^4.0.1"
 
 "stellar-wallets-kit@github:Creit-Tech/Stellar-Wallets-Kit":
-  version "0.1.0"
-  resolved "https://codeload.github.com/Creit-Tech/Stellar-Wallets-Kit/tar.gz/8da765efcae0d2362d727fe56fadbc29a1ed60c4"
+  version "0.1.1"
+  resolved "https://codeload.github.com/Creit-Tech/Stellar-Wallets-Kit/tar.gz/7f5dcffef493eb3569c954c033b166def5403b98"
   dependencies:
     "@albedo-link/intent" "^0.12.0"
     "@creit-tech/xbull-wallet-connect" "github:Creit-Tech/xBull-Wallet-Connect"
-    "@stellar/freighter-api" "^1.4.0"
+    "@stellar/freighter-api" "^1.6.0"
     "@walletconnect/qrcode-modal" "^1.8.0"
     "@walletconnect/sign-client" "^2.1.3"
     "@walletconnect/types" "^2.1.3"

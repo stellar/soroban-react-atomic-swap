@@ -22,7 +22,7 @@ import {
 } from "soroban-client";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
-import { NetworkDetails, signTx } from "./network";
+import { NetworkDetails, signData } from "./network";
 import { ERRORS } from "./error";
 
 export const SendTxStatus: {
@@ -263,7 +263,7 @@ export const buildContractAuth = async (
         const preimageHash = hash(preimage.toXDR());
 
         // eslint-disable-next-line no-await-in-loop
-        const signature = (await signTx(
+        const signature = (await signData(
           preimageHash.toString("base64"),
           signerPubKey,
           kit,
