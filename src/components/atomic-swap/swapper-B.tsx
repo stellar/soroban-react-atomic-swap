@@ -14,7 +14,7 @@ import {
   StellarWalletsKit,
 } from "stellar-wallets-kit";
 
-import { NetworkDetails } from "helpers/network";
+import { NetworkDetails } from "../../helpers/network";
 import { bc, ChannelMessageType } from "../../helpers/channel";
 import {
   getArgsFromEnvelope,
