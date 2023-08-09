@@ -1,9 +1,7 @@
 import {
-  assembleTransaction as sorobanAssemble,
   Account,
   Address,
   Contract,
-  FeeBumpTransaction,
   hash,
   Memo,
   MemoType,
@@ -159,23 +157,11 @@ export const buildSwap = async (
     tx.addMemo(Memo.text(memo));
   }
 
-  const built = tx.build();
-  const sim = await server.simulateTransaction(built);
-  const preparedTransaction = sorobanAssemble(
-    built,
+  const preparedTransaction = (await server.prepareTransaction(
+    tx.build(),
     networkPassphrase,
-    sim,
-  ) as Transaction<Memo<MemoType>, Operation[]>;
-
-  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-    sim.transactionData,
-    "base64",
-  );
-
-  return {
-    preparedTransaction,
-    footprint: sorobanTxData.resources().footprint().toXDR("base64"),
-  };
+  )) as Transaction<Memo<MemoType>, Operation[]>;
+  return preparedTransaction;
 };
 
 // Get the tokens symbol, decoded as a string
@@ -205,7 +191,6 @@ export const buildContractAuth = async (
 ) => {
   const signedAuthEntries = [];
 
-  console.dir(authEntries, { depth: 5 });
   for (const entry of authEntries) {
     if (
       entry.credentials().switch() !==
@@ -216,10 +201,6 @@ export const buildContractAuth = async (
       const entryAddress = entry.credentials().address().address().accountId();
       const entryNonce = entry.credentials().address().nonce();
 
-      console.log(
-        signerPubKey,
-        StrKey.encodeEd25519PublicKey(entryAddress.ed25519()),
-      );
       if (
         signerPubKey === StrKey.encodeEd25519PublicKey(entryAddress.ed25519())
       ) {
@@ -417,115 +398,4 @@ export const submitTx = async (
       `Unabled to submit transaction, status: ${sendResponse.status}`,
     );
   }
-};
-
-function isSorobanTransaction(tx: Transaction): boolean {
-  if (tx.operations.length !== 1) {
-    return false;
-  }
-
-  switch (tx.operations[0].type) {
-    case "invokeHostFunction":
-    case "bumpFootprintExpiration":
-    case "restoreFootprint":
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-export const assembleTransaction = (
-  raw: Transaction | FeeBumpTransaction,
-  networkPassphrase: string,
-  simulation: SorobanRpc.SimulateTransactionResponse,
-  footprint: any,
-): Transaction<Memo<MemoType>, Operation[]> => {
-  if ("innerTransaction" in raw) {
-    return assembleTransaction(
-      raw.innerTransaction,
-      networkPassphrase,
-      simulation,
-      footprint,
-    );
-  }
-
-  if (!isSorobanTransaction(raw)) {
-    throw new TypeError(
-      "unsupported transaction: must contain exactly one " +
-        "invokeHostFunction, bumpFootprintExpiration, or restoreFootprint " +
-        "operation",
-    );
-  }
-
-  if (simulation.results.length !== 1) {
-    throw new Error(`simulation results invalid: ${simulation.results}`);
-  }
-
-  const source = new Account(raw.source, `${parseInt(raw.sequence, 10) - 1}`);
-  const classicFeeNum = parseInt(raw.fee, 10) || 0;
-  const minResourceFeeNum = parseInt(simulation.minResourceFee, 10) || 0;
-  const txnBuilder = new TransactionBuilder(source, {
-    // automatically update the tx fee that will be set on the resulting tx to
-    // the sum of 'classic' fee provided from incoming tx.fee and minResourceFee
-    // provided by simulation.
-    //
-    // 'classic' tx fees are measured as the product of tx.fee * 'number of
-    // operations', In soroban contract tx, there can only be single operation
-    // in the tx, so can make simplification of total classic fees for the
-    // soroban transaction will be equal to incoming tx.fee + minResourceFee.
-    fee: (classicFeeNum + minResourceFeeNum).toString(),
-    memo: raw.memo,
-    networkPassphrase,
-    timebounds: raw.timeBounds,
-    ledgerbounds: raw.ledgerBounds,
-    minAccountSequence: raw.minAccountSequence,
-    minAccountSequenceAge: raw.minAccountSequenceAge,
-    minAccountSequenceLedgerGap: raw.minAccountSequenceLedgerGap,
-    extraSigners: raw.extraSigners,
-  });
-
-  switch (raw.operations[0].type) {
-    case "invokeHostFunction":
-      {
-        const invokeOp: Operation.InvokeHostFunction = raw.operations[0];
-        const existingAuth = invokeOp.auth ?? [];
-        txnBuilder.addOperation(
-          Operation.invokeHostFunction({
-            source: invokeOp.source,
-            func: invokeOp.func,
-            // apply the auth from the simulation
-            auth:
-              existingAuth.length > 0
-                ? existingAuth
-                : simulation.results[0].auth?.map((a) =>
-                    xdr.SorobanAuthorizationEntry.fromXDR(a, "base64"),
-                  ) ?? [],
-          }),
-        );
-      }
-      break;
-
-    case "bumpFootprintExpiration":
-      txnBuilder.addOperation(
-        Operation.bumpFootprintExpiration(raw.operations[0]),
-      );
-      break;
-
-    case "restoreFootprint":
-      txnBuilder.addOperation(Operation.restoreFootprint(raw.operations[0]));
-      break;
-    default:
-      throw new Error(`op not supported: ${raw.operations[0].type}`);
-  }
-
-  // apply the pre-built Soroban Tx Data from simulation onto the Tx
-  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-    simulation.transactionData,
-    "base64",
-  );
-  sorobanTxData.resources().footprint(footprint);
-  txnBuilder.setSorobanData(sorobanTxData);
-
-  return txnBuilder.build();
 };

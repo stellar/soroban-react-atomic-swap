@@ -1,12 +1,12 @@
 import React, { ChangeEvent } from "react";
 import {
+  assembleTransaction,
   BASE_FEE,
   Memo,
   MemoType,
   Operation,
   Transaction,
   TransactionBuilder,
-  xdr,
 } from "soroban-client";
 import {
   Button,
@@ -31,7 +31,6 @@ import { NetworkDetails, signTx } from "../../helpers/network";
 import {
   getServer,
   submitTx,
-  assembleTransaction,
   getTxBuilder,
   buildSwap,
 } from "../../helpers/soroban";
@@ -62,7 +61,6 @@ export const Exchange = (props: ExchangeProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
-  const [originalFootprint, setOriginalFootprint] = React.useState("");
   const [fee, setFee] = React.useState(BASE_FEE);
   const [memo, setMemo] = React.useState("");
 
@@ -158,9 +156,6 @@ export const Exchange = (props: ExchangeProps) => {
             tx,
             props.networkDetails.networkPassphrase,
             txSim,
-            xdr.LedgerFootprint.fromXDR(
-              Buffer.from(originalFootprint, "base64"),
-            ),
           );
 
           const _signedXdr = await signTx(
@@ -243,7 +238,7 @@ export const Exchange = (props: ExchangeProps) => {
             minAmount: BigInt(minAmountB).toString(),
           };
 
-          const { preparedTransaction, footprint } = await buildSwap(
+          const preparedTransaction = await buildSwap(
             contractID,
             tokenA,
             tokenB,
@@ -254,7 +249,6 @@ export const Exchange = (props: ExchangeProps) => {
             props.networkDetails.networkPassphrase,
             txBuilder,
           );
-          setOriginalFootprint(footprint);
 
           const newWindow = window.open(
             `${props.basePath}/swapper-a`,
