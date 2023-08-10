@@ -5,6 +5,7 @@ import {
   Memo,
   MemoType,
   Operation,
+  SorobanDataBuilder,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -154,31 +155,30 @@ export const Exchange = (props: ExchangeProps) => {
           ) as Transaction<Memo<MemoType>, Operation[]>;
 
           const txSim = await server.simulateTransaction(tx);
-          const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-            txSim.transactionData,
-            "base64",
-          );
-
-          sorobanTxData
-            .resources()
-            .footprint(
-              xdr.LedgerFootprint.fromXDR(
-                Buffer.from(originalFootprint, "base64"),
-              ),
-            );
-
-          // apply the pre-built Soroban Tx Data from simulation onto the Tx
-          const newBuilder = TransactionBuilder.cloneFrom(tx);
-          newBuilder.setSorobanData(sorobanTxData);
 
           const preparedTransaction = assembleTransaction(
-            newBuilder.build(),
+            tx,
             props.networkDetails.networkPassphrase,
             txSim,
           );
 
+          const originalFootprintXDR = xdr.LedgerFootprint.fromXDR(
+            Buffer.from(originalFootprint, "base64"),
+          );
+
+          const final = TransactionBuilder.cloneFrom(preparedTransaction)
+            .setSorobanData(
+              new SorobanDataBuilder(txSim.transactionData)
+                .setFootprint(
+                  originalFootprintXDR.readOnly(),
+                  originalFootprintXDR.readWrite(),
+                )
+                .build(),
+            )
+            .build();
+
           const _signedXdr = await signTx(
-            preparedTransaction.toXDR(),
+            final.toXDR(),
             props.pubKey,
             props.swkKit,
           );

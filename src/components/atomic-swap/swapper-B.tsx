@@ -161,12 +161,12 @@ export const SwapperB = (props: SwapperBProps) => {
       case 2: {
         const signWithWallet = async () => {
           try {
-            const signedAuth = await signAuthEntry();
+            const _signedTx = await signAuthEntry();
             bc.postMessage({
               type: ChannelMessageType.SignedTx,
               data: {
                 contractID,
-                signedTx: signedAuth,
+                signedTx: _signedTx,
               },
             });
 
