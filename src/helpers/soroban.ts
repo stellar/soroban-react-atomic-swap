@@ -346,6 +346,12 @@ export const getArgsFromEnvelope = (
   }
 
   const args = op.invokeContract();
+  const tokenA = StrKey.encodeContract(
+    Buffer.from(args[4].address().contractId().toString("hex"), "hex"),
+  );
+  const tokenB = StrKey.encodeContract(
+    Buffer.from(args[5].address().contractId().toString("hex"), "hex"),
+  );
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
@@ -354,8 +360,8 @@ export const getArgsFromEnvelope = (
     addressB: StrKey.encodeEd25519PublicKey(
       args[3].address().accountId().ed25519(),
     ),
-    tokenA: args[4].address().contractId().toString("hex"),
-    tokenB: args[5].address().contractId().toString("hex"),
+    tokenA,
+    tokenB,
     amountA: valueToI128String(args[6]),
     minBForA: valueToI128String(args[7]),
     amountB: valueToI128String(args[8]),
