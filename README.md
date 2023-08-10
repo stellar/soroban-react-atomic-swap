@@ -215,7 +215,7 @@ soroban contract invoke \
 
 You should see your account address in the top right corner of the screen.
 
-<img src = "public/img/2-show-address.png" width="70%" height="70%"/>
+<img src = "public/img/2-show-address.png" width="75%" height="75%"/>
 
 2. Enter the contract id for the Atomic Swap.
 
@@ -241,7 +241,7 @@ In this example we will swap 5 of Token B for 1 of Token A.
 This will open a another window in your browser where you will be prompted to
 sign the transaction with user A's and user B's accounts.
 
-<img src = "public/img/7-windows.png" width="70%" height="70%"/>
+<img src = "public/img/7-windows.png" width="75%" height="75%"/>
 
 6. Click the "Connect Wallet" button in the new window to connect user A's
    account to the Dapp.
