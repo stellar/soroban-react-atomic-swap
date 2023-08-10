@@ -274,8 +274,6 @@ export const buildContractAuth = async (
           preimage,
           signature,
           signerPubKey,
-          invocation,
-          expirationLedgerSeq,
           entryNonce,
         );
 
@@ -295,10 +293,7 @@ function buildAuthEnvelope(
   invocation: any,
   nonce: any,
 ) {
-  const networkId = Buffer.from(hash(Buffer.from(networkPassphrase))).subarray(
-    0,
-    32,
-  );
+  const networkId = hash(Buffer.from(networkPassphrase));
   const envelope = new xdr.HashIdPreimageSorobanAuthorization({
     networkId,
     invocation,
@@ -313,8 +308,6 @@ function buildAuthEntry(
   envelope: any,
   signature: any,
   publicKey: string,
-  invocation: any,
-  signatureExpirationLedger: any,
   nonce: any,
 ) {
   // ensure this identity signed this envelope correctly
@@ -332,13 +325,14 @@ function buildAuthEntry(
     );
   }
 
+  const auth = envelope.sorobanAuthorization();
   return new xdr.SorobanAuthorizationEntry({
-    rootInvocation: invocation,
+    rootInvocation: auth.invocation(),
     credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
       new xdr.SorobanAddressCredentials({
         address: new Address(publicKey).toScAddress(),
         nonce,
-        signatureExpirationLedger,
+        signatureExpirationLedger: auth.signatureExpirationLedger(),
         signatureArgs: [
           nativeToScVal(
             {
