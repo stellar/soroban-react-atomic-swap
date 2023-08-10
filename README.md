@@ -148,8 +148,8 @@ soroban contract invoke \
     --symbol "DTA"
 ```
 
-Next we will need to mint some tokens to your user's account. To do this, run
-the following command:
+Next we will need to mint some tokens to two user account. To do this, run the
+following command:
 
 ```bash
 soroban contract invoke \
@@ -158,20 +158,20 @@ soroban contract invoke \
     --rpc-url https://rpc-futurenet.stellar.org:443 \
     --network-passphrase 'Test SDF Future Network ; October 2022' \
     -- mint \
-    --to <USER_PUBLIC_KEY> \
+    --to <USER_A_OR_B_PUBLIC_KEY> \
     --amount 1000000000
 ```
 
-Remember: You'll be deploying and minting the token contract twice, once for
-each token involved in the swap. Make sure to store both Contract Ids. After
-deploying the first token contract using the steps outlined above, simply repeat
-the process for the second token.
+Remember: You'll be deploying, initializing token contract twice, once for each
+token involved in the swap so make sure to store both Contract Ids. You will
+mint tokens to both users' accounts for each token contract.
 
-Once deployed, you can initialize and mint the second token contract with the
-same commands for the first token contract, replacing the contract id with the
-second token contract id:
+After deploying and minting the first token contract using the steps outlined
+above, simply repeat the process for the second token.
 
-**_Initialize:_**
+_See the example below for initializing and minting the second token contract_
+
+**_Initialize_**
 
 ```bash
 soroban contract invoke \
@@ -186,8 +186,7 @@ soroban contract invoke \
     --symbol "DTB"
 ```
 
-For the Atomic Swap Dapp, we will need to mint some tokens to a second user's
-account. To do this, run the following command:
+**_Mint_**
 
 ```bash
 soroban contract invoke \
@@ -196,7 +195,7 @@ soroban contract invoke \
     --rpc-url https://rpc-futurenet.stellar.org:443 \
     --network-passphrase 'Test SDF Future Network ; October 2022' \
     -- mint \
-    --to <USER_B_PUBLIC_KEY> \
+    --to <USER_A_OR_B_PUBLIC_KEY> \
     --amount 1000000000
 ```
 
@@ -206,9 +205,57 @@ soroban contract invoke \
 7. In the `soroban-react-atomic-swap` directory run the front end with
    `yarn start` and navigate to http://localhost:9000/ in your browser.
 
-8. Connect your wallet to the Atomic Swap Dapp by clicking the "Connect Wallet"
-   button in the top right corner of the screen. This will open a
-   Freighter/Albedo/XBull window where you can select your account and sign the
-   transaction.
+   ## Make a Swap
 
-TODO: finish this section
+8. Connect your wallet to the Atomic Swap Dapp by clicking the "Connect Wallet"
+   button. This will open a Freighter/Albedo/XBull window where you can select
+   your account to connect to the Dapp.
+
+<img src = "public/img/1-connect-wallet-a.png" width="50%" height="50%"/>
+
+You should see your account address in the top right corner of the screen.
+
+2. Enter the contract id for the Atomic Swap.
+
+3. Enter the contract id and amount for Token A you want to swap.
+
+In this example we will swap 1 of Token A for 5 of Token B.
+
+4. Enter Swapper B's public key and the contract id and amount for Token B you
+   want to swap.
+
+In this example we will swap 5 of Token B for 1 of Token A.
+
+5. Click the "Build Swap" button to initiate the swap. This will open a another
+   window in your browser where you will be prompted to sign the transaction
+   with user A's and user B's accounts.
+
+6. Click the "Connect Wallet" button in the new window to connect user A's
+   account to the Dapp.
+
+7. Click the "Sign with Waller" button to sign the transaction with user A's
+   account.
+
+> Note: If you are using the address of the account that initiated the swap, you
+> may notice that there is no window to sign the transaction. This is because we
+> are using a previously authorized account to sign the transaction.. TODO: Add
+> more info about this.
+
+8. Switch to user B's account in Freighter/Albedo/XBull and click the "Connect
+   Wallet" button in the new window to connect user B's account to the Dapp.
+
+9. Click the "Sign with Waller" button to sign the transaction with user B's
+   account. This will authorze the swap and display a success message.
+
+10. Switch back to previous tab and click the "Sign with Wallet & Sumbit" button
+    to submit the swap to the network.
+
+11. You should see a "Transaction Result" message and the swap should be
+    complete!
+
+Congratulations! You have successfully completed an Atomic Swap using Soroban!
+🎉
+
+If you have any questions or issues, please reach out to us on
+[discord](https://discord.com/channels/897514728459468821/1037073682599780494)
+or file an issue on github.
