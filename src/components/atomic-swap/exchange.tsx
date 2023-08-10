@@ -7,6 +7,7 @@ import {
   Operation,
   Transaction,
   TransactionBuilder,
+  xdr,
 } from "soroban-client";
 import {
   Button,
@@ -61,6 +62,7 @@ export const Exchange = (props: ExchangeProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
+  const [originalFootprint, setOriginalFootprint] = React.useState("");
   const [fee, setFee] = React.useState(BASE_FEE);
   const [memo, setMemo] = React.useState("");
 
@@ -152,8 +154,25 @@ export const Exchange = (props: ExchangeProps) => {
           ) as Transaction<Memo<MemoType>, Operation[]>;
 
           const txSim = await server.simulateTransaction(tx);
+          const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
+            txSim.transactionData,
+            "base64",
+          );
+
+          sorobanTxData
+            .resources()
+            .footprint(
+              xdr.LedgerFootprint.fromXDR(
+                Buffer.from(originalFootprint, "base64"),
+              ),
+            );
+
+          // apply the pre-built Soroban Tx Data from simulation onto the Tx
+          const newBuilder = TransactionBuilder.cloneFrom(tx);
+          newBuilder.setSorobanData(sorobanTxData);
+
           const preparedTransaction = assembleTransaction(
-            tx,
+            newBuilder.build(),
             props.networkDetails.networkPassphrase,
             txSim,
           );
@@ -238,7 +257,7 @@ export const Exchange = (props: ExchangeProps) => {
             minAmount: BigInt(minAmountB).toString(),
           };
 
-          const preparedTransaction = await buildSwap(
+          const { preparedTransaction, footprint } = await buildSwap(
             contractID,
             tokenA,
             tokenB,
@@ -249,6 +268,7 @@ export const Exchange = (props: ExchangeProps) => {
             props.networkDetails.networkPassphrase,
             txBuilder,
           );
+          setOriginalFootprint(footprint);
 
           const newWindow = window.open(
             `${props.basePath}/swapper-a`,

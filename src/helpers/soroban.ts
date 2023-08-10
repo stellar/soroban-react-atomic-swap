@@ -157,11 +157,22 @@ export const buildSwap = async (
     tx.addMemo(Memo.text(memo));
   }
 
+  const built = tx.build();
+  const sim = await server.simulateTransaction(built);
   const preparedTransaction = (await server.prepareTransaction(
     tx.build(),
     networkPassphrase,
   )) as Transaction<Memo<MemoType>, Operation[]>;
-  return preparedTransaction;
+
+  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
+    sim.transactionData,
+    "base64",
+  );
+
+  return {
+    preparedTransaction,
+    footprint: sorobanTxData.resources().footprint().toXDR("base64"),
+  };
 };
 
 // Get the tokens symbol, decoded as a string
