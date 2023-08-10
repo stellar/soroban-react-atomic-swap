@@ -17,6 +17,7 @@ import {
   xdr,
   scValToBigInt,
   ScInt,
+  assembleTransaction,
 } from "soroban-client";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
@@ -159,10 +160,11 @@ export const buildSwap = async (
 
   const built = tx.build();
   const sim = await server.simulateTransaction(built);
-  const preparedTransaction = (await server.prepareTransaction(
+  const preparedTransaction = assembleTransaction(
     tx.build(),
     networkPassphrase,
-  )) as Transaction<Memo<MemoType>, Operation[]>;
+    sim,
+  ) as Transaction<Memo<MemoType>, Operation[]>;
 
   const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
     sim.transactionData,
