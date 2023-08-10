@@ -211,30 +211,45 @@ soroban contract invoke \
    button. This will open a Freighter/Albedo/XBull window where you can select
    your account to connect to the Dapp.
 
-<img src = "public/img/1-connect-wallet-a.png" width="50%" height="50%"/>
+<img src = "public/img/1-connect-wallet-a.png" width="40%" height="40%"/>
 
 You should see your account address in the top right corner of the screen.
 
+<img src = "public/img/2-show-address.png" width="70%" height="70%"/>
+
 2. Enter the contract id for the Atomic Swap.
 
+<img src = "public/img/3-swap-contract-id.png" width="40%" height="40%"/>
+
 3. Enter the contract id and amount for Token A you want to swap.
+
+<img src = "public/img/4-token-a.png" width="40%" height="40%"/>
 
 In this example we will swap 1 of Token A for 5 of Token B.
 
 4. Enter Swapper B's public key and the contract id and amount for Token B you
    want to swap.
 
+<img src = "public/img/5-token-b.png" width="40%" height="40%"/>
+
 In this example we will swap 5 of Token B for 1 of Token A.
 
-5. Click the "Build Swap" button to initiate the swap. This will open a another
-   window in your browser where you will be prompted to sign the transaction
-   with user A's and user B's accounts.
+5. Click the "Build Swap" button to initiate the swap.
+
+<img src = "public/img/6-build-swap.png" width="40%" height="40%"/>
+
+This will open a another window in your browser where you will be prompted to
+sign the transaction with user A's and user B's accounts.
+
+<img src = "public/img/7-windows.png" width="70%" height="70%"/>
 
 6. Click the "Connect Wallet" button in the new window to connect user A's
    account to the Dapp.
 
-7. Click the "Sign with Waller" button to sign the transaction with user A's
+7. Click the "Sign with Wallet" button to sign the transaction with user A's
    account.
+
+<img src = "public/img/8-sign-with-a.png" width="40%" height="40%"/>
 
 > Note: If you are using the address of the account that initiated the swap, you
 > may notice that there is no window to sign the transaction. This is because we
@@ -244,14 +259,20 @@ In this example we will swap 5 of Token B for 1 of Token A.
 8. Switch to user B's account in Freighter/Albedo/XBull and click the "Connect
    Wallet" button in the new window to connect user B's account to the Dapp.
 
-9. Click the "Sign with Waller" button to sign the transaction with user B's
-   account. This will authorze the swap and display a success message.
+9. Click the "Sign with Wallet" button to sign the transaction with user B's
+   account. This will authorize the swap and display a success message.
+
+<img src = "public/img/11-authorized.png" width="40%" height="40%"/>
 
 10. Switch back to previous tab and click the "Sign with Wallet & Sumbit" button
     to submit the swap to the network.
 
+<img src = "public/img/12-submit-tx.png" width="40%" height="40%"/>
+
 11. You should see a "Transaction Result" message and the swap should be
     complete!
+
+<img src = "public/img/13-tx-result.png" width="40%" height="40%"/>
 
 Congratulations! You have successfully completed an Atomic Swap using Soroban!
 🎉
