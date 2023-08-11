@@ -270,12 +270,7 @@ export const buildContractAuth = async (
         const input = hash(preimage.toXDR());
         // eslint-disable-next-line no-await-in-loop
         const signature = await signingMethod(input);
-        const authEntry = buildAuthEntry(
-          preimage,
-          signature,
-          signerPubKey,
-          entryNonce,
-        );
+        const authEntry = buildAuthEntry(preimage, signature, signerPubKey);
 
         signedAuthEntries.push(authEntry);
       } else {
@@ -304,12 +299,7 @@ function buildAuthEnvelope(
   return xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(envelope);
 }
 
-function buildAuthEntry(
-  envelope: any,
-  signature: any,
-  publicKey: string,
-  nonce: any,
-) {
+function buildAuthEntry(envelope: any, signature: any, publicKey: string) {
   // ensure this identity signed this envelope correctly
   if (
     !Keypair.fromPublicKey(publicKey).verify(hash(envelope.toXDR()), signature)
@@ -331,7 +321,7 @@ function buildAuthEntry(
     credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
       new xdr.SorobanAddressCredentials({
         address: new Address(publicKey).toScAddress(),
-        nonce,
+        nonce: auth.nonce(),
         signatureExpirationLedger: auth.signatureExpirationLedger(),
         signatureArgs: [
           nativeToScVal(
