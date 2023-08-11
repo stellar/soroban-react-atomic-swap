@@ -35,6 +35,8 @@ import {
   submitTx,
   getTxBuilder,
   buildSwap,
+  getTokenDecimals,
+  parseTokenAmount,
 } from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
@@ -45,7 +47,11 @@ interface ExchangeProps {
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
+  setTokenADecimals: React.Dispatch<React.SetStateAction<number>>;
+  setTokenBDecimals: React.Dispatch<React.SetStateAction<number>>;
   swkKit: StellarWalletsKit;
+  tokenADecimals: number;
+  tokenBDecimals: number;
   pubKey: string;
 }
 
@@ -247,14 +253,20 @@ export const Exchange = (props: ExchangeProps) => {
 
           const tokenA = {
             id: tokenAAddress,
-            amount: BigInt(amountA).toString(),
-            minAmount: BigInt(minAmountA).toString(),
+            amount: parseTokenAmount(amountA, props.tokenADecimals).toString(),
+            minAmount: parseTokenAmount(
+              minAmountA,
+              props.tokenADecimals,
+            ).toString(),
           };
 
           const tokenB = {
             id: tokenBAddress,
-            amount: BigInt(amountB).toString(),
-            minAmount: BigInt(minAmountB).toString(),
+            amount: parseTokenAmount(amountB, props.tokenBDecimals).toString(),
+            minAmount: parseTokenAmount(
+              minAmountB,
+              props.tokenBDecimals,
+            ).toString(),
           };
 
           const { preparedTransaction, footprint } = await buildSwap(
@@ -339,6 +351,23 @@ export const Exchange = (props: ExchangeProps) => {
           setMinAmountB(event.target.value);
         };
 
+        const onClick = async () => {
+          const server = getServer(props.networkDetails);
+          const txBuilder = await getTxBuilder(
+            props.pubKey,
+            BASE_FEE,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+          const decimals = await getTokenDecimals(
+            tokenBAddress,
+            txBuilder,
+            server,
+          );
+          props.setTokenBDecimals(decimals);
+          setStepCount((stepCount + 1) as StepCount);
+        };
+
         return (
           <>
             <Heading as="h1" size="sm">
@@ -377,7 +406,7 @@ export const Exchange = (props: ExchangeProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={() => setStepCount((stepCount + 1) as StepCount)}
+                onClick={onClick}
               >
                 Next
               </Button>
@@ -398,6 +427,23 @@ export const Exchange = (props: ExchangeProps) => {
           event: ChangeEvent<HTMLInputElement>,
         ) => {
           setMinAmountA(event.target.value);
+        };
+
+        const onClick = async () => {
+          const server = getServer(props.networkDetails);
+          const txBuilder = await getTxBuilder(
+            props.pubKey,
+            BASE_FEE,
+            server,
+            props.networkDetails.networkPassphrase,
+          );
+          const decimals = await getTokenDecimals(
+            tokenAAddress,
+            txBuilder,
+            server,
+          );
+          props.setTokenADecimals(decimals);
+          setStepCount((stepCount + 1) as StepCount);
         };
 
         return (
@@ -431,7 +477,7 @@ export const Exchange = (props: ExchangeProps) => {
                 size="md"
                 variant="tertiary"
                 isFullWidth
-                onClick={() => setStepCount((stepCount + 1) as StepCount)}
+                onClick={onClick}
               >
                 Next
               </Button>

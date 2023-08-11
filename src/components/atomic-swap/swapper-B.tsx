@@ -1,4 +1,5 @@
 import React from "react";
+import BigNumber from "bignumber.js";
 import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
   Transaction,
@@ -25,10 +26,12 @@ import {
   BASE_FEE,
 } from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
+import { formatTokenAmount } from "../../helpers/format";
 
 type StepCount = 1 | 2 | 3;
 
 interface SwapperBProps {
+  decimals: number;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
   setPubKey: (pubKey: string) => void;
@@ -93,7 +96,26 @@ export const SwapperB = (props: SwapperBProps) => {
             tx.toEnvelope().toXDR("base64"),
             props.networkDetails.networkPassphrase,
           );
-          setSwapArgs(args);
+          const formattedArgs = {
+            ...args,
+            amountA: formatTokenAmount(
+              new BigNumber(args.amountA),
+              props.decimals,
+            ),
+            amountB: formatTokenAmount(
+              new BigNumber(args.amountB),
+              props.decimals,
+            ),
+            minAForB: formatTokenAmount(
+              new BigNumber(args.minAForB),
+              props.decimals,
+            ),
+            minBForA: formatTokenAmount(
+              new BigNumber(args.minBForA),
+              props.decimals,
+            ),
+          };
+          setSwapArgs(formattedArgs);
 
           const tokenASymbolBuilder = await getTxBuilder(
             publicKey,
