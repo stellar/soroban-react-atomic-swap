@@ -169,7 +169,8 @@ export const Exchange = (props: ExchangeProps) => {
           );
 
           const originalFootprintXDR = xdr.LedgerFootprint.fromXDR(
-            Buffer.from(originalFootprint, "base64"),
+            originalFootprint,
+            "base64",
           );
 
           const final = TransactionBuilder.cloneFrom(preparedTransaction)
