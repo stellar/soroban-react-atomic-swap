@@ -33,6 +33,8 @@ export const AppSubRouter = (props: AppProps) => {
   // Initial state, empty states for token/transaction details
   const [activePubKey, setActivePubKey] = React.useState("");
   const [error, setError] = React.useState(null as string | null);
+  const [tokenADecimals, setTokenADecimals] = React.useState(0);
+  const [tokenBDecimals, setTokenBDecimals] = React.useState(0);
 
   // Setup swc, user will set the desired wallet on connect
   const [SWKKit] = React.useState(
@@ -67,6 +69,10 @@ export const AppSubRouter = (props: AppProps) => {
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
+              setTokenADecimals={setTokenADecimals}
+              setTokenBDecimals={setTokenBDecimals}
+              tokenADecimals={tokenADecimals}
+              tokenBDecimals={tokenBDecimals}
               swkKit={SWKKit}
               pubKey={activePubKey}
             />
@@ -77,6 +83,7 @@ export const AppSubRouter = (props: AppProps) => {
           element={
             <SwapperA
               basePath={basePath}
+              decimals={tokenADecimals}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}
@@ -89,6 +96,7 @@ export const AppSubRouter = (props: AppProps) => {
           path="swapper-b/"
           element={
             <SwapperB
+              decimals={tokenBDecimals}
               networkDetails={selectedNetwork}
               setError={setError}
               setPubKey={setActivePubKey}

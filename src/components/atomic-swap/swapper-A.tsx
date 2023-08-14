@@ -1,4 +1,5 @@
 import React from "react";
+import BigNumber from "bignumber.js";
 import {
   Memo,
   MemoType,
@@ -22,10 +23,12 @@ import {
 } from "../../helpers/soroban";
 import { NetworkDetails } from "../../helpers/network";
 import { ERRORS } from "../../helpers/error";
+import { formatTokenAmount } from "../../helpers/format";
 
 type StepCount = 1 | 2;
 
 interface SwapperAProps {
+  decimals: number;
   basePath: string;
   networkDetails: NetworkDetails;
   setError: (error: string | null) => void;
@@ -86,7 +89,26 @@ export const SwapperA = (props: SwapperAProps) => {
           tx.toEnvelope().toXDR("base64"),
           props.networkDetails.networkPassphrase,
         );
-        setSwapArgs(args);
+        const formattedArgs = {
+          ...args,
+          amountA: formatTokenAmount(
+            new BigNumber(args.amountA),
+            props.decimals,
+          ),
+          amountB: formatTokenAmount(
+            new BigNumber(args.amountB),
+            props.decimals,
+          ),
+          minAForB: formatTokenAmount(
+            new BigNumber(args.minAForB),
+            props.decimals,
+          ),
+          minBForA: formatTokenAmount(
+            new BigNumber(args.minBForA),
+            props.decimals,
+          ),
+        };
+        setSwapArgs(formattedArgs);
 
         return;
       }

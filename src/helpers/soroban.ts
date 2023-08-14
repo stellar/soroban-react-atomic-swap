@@ -1,13 +1,9 @@
 import {
-  assembleTransaction as sorobanAssemble,
   Account,
   Address,
   Contract,
-  FeeBumpTransaction,
-  hash,
   Memo,
   MemoType,
-  nativeToScVal,
   Operation,
   scValToNative,
   Server,
@@ -19,7 +15,12 @@ import {
   xdr,
   scValToBigInt,
   ScInt,
+  assembleTransaction,
+  Keypair,
+  hash,
+  nativeToScVal,
 } from "soroban-client";
+import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
 import { NetworkDetails, signData } from "./network";
@@ -46,6 +47,40 @@ export const BASE_FEE = "100";
 
 export const RPC_URLS: { [key: string]: string } = {
   FUTURENET: "https://rpc-futurenet.stellar.org:443",
+};
+
+// Given a display value for a token and a number of decimals, return the corresponding BigNumber
+export const parseTokenAmount = (value: string, decimals: number) => {
+  const comps = value.split(".");
+
+  let whole = comps[0];
+  let fraction = comps[1];
+  if (!whole) {
+    whole = "0";
+  }
+  if (!fraction) {
+    fraction = "0";
+  }
+
+  // Trim trailing zeros
+  while (fraction[fraction.length - 1] === "0") {
+    fraction = fraction.substring(0, fraction.length - 1);
+  }
+
+  // If decimals is 0, we have an empty string for fraction
+  if (fraction === "") {
+    fraction = "0";
+  }
+
+  // Fully pad the string with zeros to get to value
+  while (fraction.length < decimals) {
+    fraction += "0";
+  }
+
+  const wholeValue = new BigNumber(whole);
+  const fractionValue = new BigNumber(fraction);
+
+  return wholeValue.shiftedBy(decimals).plus(fractionValue);
 };
 
 export const accountToScVal = (account: string) =>
@@ -161,7 +196,7 @@ export const buildSwap = async (
 
   const built = tx.build();
   const sim = await server.simulateTransaction(built);
-  const preparedTransaction = sorobanAssemble(
+  const preparedTransaction = assembleTransaction(
     built,
     networkPassphrase,
     sim,
@@ -205,7 +240,6 @@ export const buildContractAuth = async (
 ) => {
   const signedAuthEntries = [];
 
-  console.dir(authEntries, { depth: 5 });
   for (const entry of authEntries) {
     if (
       entry.credentials().switch() !==
@@ -214,12 +248,7 @@ export const buildContractAuth = async (
       signedAuthEntries.push(entry);
     } else {
       const entryAddress = entry.credentials().address().address().accountId();
-      const entryNonce = entry.credentials().address().nonce();
 
-      console.log(
-        signerPubKey,
-        StrKey.encodeEd25519PublicKey(entryAddress.ed25519()),
-      );
       if (
         signerPubKey === StrKey.encodeEd25519PublicKey(entryAddress.ed25519())
       ) {
@@ -247,53 +276,29 @@ export const buildContractAuth = async (
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
 
-        const passPhraseHash = hash(Buffer.from(networkPassphrase));
         const invocation = entry.rootInvocation();
-        const hashIDPreimageAuth = new xdr.HashIdPreimageSorobanAuthorization({
-          networkId: Buffer.from(passPhraseHash).subarray(0, 32),
+        const signingMethod = async (input: Buffer) => {
+          // eslint-disable-next-line no-await-in-loop
+          const signature = (await signData(
+            input.toString("base64"),
+            signerPubKey,
+            kit,
+          )) as any as { data: number[] };
+          return Buffer.from(signature.data);
+        };
+
+        const entryNonce = entry.credentials().address().nonce();
+        const preimage = buildAuthEnvelope(
+          networkPassphrase,
+          expirationLedgerSeq,
           invocation,
-          nonce: entryNonce,
-          signatureExpirationLedger: expirationLedgerSeq,
-        });
-
-        const preimage =
-          xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(
-            hashIDPreimageAuth,
-          );
-        const preimageHash = hash(preimage.toXDR());
-
+          entryNonce,
+        );
+        const input = hash(preimage.toXDR());
         // eslint-disable-next-line no-await-in-loop
-        const signature = (await signData(
-          preimageHash.toString("base64"),
-          signerPubKey,
-          kit,
-        )) as any as { data: number[] }; // not a string in this instance
+        const signature = await signingMethod(input);
+        const authEntry = buildAuthEntry(preimage, signature, signerPubKey);
 
-        const authEntry = new xdr.SorobanAuthorizationEntry({
-          credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
-            new xdr.SorobanAddressCredentials({
-              address: new Address(signerPubKey).toScAddress(),
-              nonce: hashIDPreimageAuth.nonce(),
-              signatureExpirationLedger:
-                hashIDPreimageAuth.signatureExpirationLedger(),
-              signatureArgs: [
-                nativeToScVal(
-                  {
-                    public_key: StrKey.decodeEd25519PublicKey(signerPubKey),
-                    signature: new Uint8Array(signature.data),
-                  },
-                  {
-                    type: {
-                      public_key: ["symbol", null],
-                      signature: ["symbol", null],
-                    },
-                  } as any,
-                ),
-              ],
-            }),
-          ),
-          rootInvocation: invocation,
-        });
         signedAuthEntries.push(authEntry);
       } else {
         signedAuthEntries.push(entry);
@@ -303,6 +308,68 @@ export const buildContractAuth = async (
 
   return signedAuthEntries;
 };
+
+function buildAuthEnvelope(
+  networkPassphrase: string,
+  validUntil: any,
+  invocation: any,
+  nonce: any,
+) {
+  const networkId = hash(Buffer.from(networkPassphrase));
+  const envelope = new xdr.HashIdPreimageSorobanAuthorization({
+    networkId,
+    invocation,
+    nonce,
+    signatureExpirationLedger: validUntil,
+  });
+
+  return xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(envelope);
+}
+
+function buildAuthEntry(envelope: any, signature: any, publicKey: string) {
+  // ensure this identity signed this envelope correctly
+  if (
+    !Keypair.fromPublicKey(publicKey).verify(hash(envelope.toXDR()), signature)
+  ) {
+    throw new Error(`signature does not match envelope or identity`);
+  }
+
+  if (
+    envelope.switch() !== xdr.EnvelopeType.envelopeTypeSorobanAuthorization()
+  ) {
+    throw new TypeError(
+      `expected sorobanAuthorization envelope, got ${envelope.switch().name}`,
+    );
+  }
+
+  const auth = envelope.sorobanAuthorization();
+  return new xdr.SorobanAuthorizationEntry({
+    rootInvocation: auth.invocation(),
+    credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+      new xdr.SorobanAddressCredentials({
+        address: new Address(publicKey).toScAddress(),
+        nonce: auth.nonce(),
+        signatureExpirationLedger: auth.signatureExpirationLedger(),
+        signatureArgs: [
+          nativeToScVal(
+            {
+              public_key: StrKey.decodeEd25519PublicKey(publicKey),
+              signature,
+            },
+            // force conversion of map keys to ScSymbol as this is expected by
+            // custom [contracttype] Rust structures
+            {
+              type: {
+                public_key: ["symbol", null],
+                signature: ["symbol", null],
+              },
+            } as any,
+          ),
+        ],
+      }),
+    ),
+  });
+}
 
 export const signContractAuth = async (
   contractID: string,
@@ -365,6 +432,8 @@ export const getArgsFromEnvelope = (
   }
 
   const args = op.invokeContract();
+  const tokenA = StrKey.encodeContract(args[4].address().contractId());
+  const tokenB = StrKey.encodeContract(args[5].address().contractId());
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
@@ -373,8 +442,8 @@ export const getArgsFromEnvelope = (
     addressB: StrKey.encodeEd25519PublicKey(
       args[3].address().accountId().ed25519(),
     ),
-    tokenA: args[4].address().contractId().toString("hex"),
-    tokenB: args[5].address().contractId().toString("hex"),
+    tokenA,
+    tokenB,
     amountA: valueToI128String(args[6]),
     minBForA: valueToI128String(args[7]),
     amountB: valueToI128String(args[8]),
@@ -417,115 +486,4 @@ export const submitTx = async (
       `Unabled to submit transaction, status: ${sendResponse.status}`,
     );
   }
-};
-
-function isSorobanTransaction(tx: Transaction): boolean {
-  if (tx.operations.length !== 1) {
-    return false;
-  }
-
-  switch (tx.operations[0].type) {
-    case "invokeHostFunction":
-    case "bumpFootprintExpiration":
-    case "restoreFootprint":
-      return true;
-
-    default:
-      return false;
-  }
-}
-
-export const assembleTransaction = (
-  raw: Transaction | FeeBumpTransaction,
-  networkPassphrase: string,
-  simulation: SorobanRpc.SimulateTransactionResponse,
-  footprint: any,
-): Transaction<Memo<MemoType>, Operation[]> => {
-  if ("innerTransaction" in raw) {
-    return assembleTransaction(
-      raw.innerTransaction,
-      networkPassphrase,
-      simulation,
-      footprint,
-    );
-  }
-
-  if (!isSorobanTransaction(raw)) {
-    throw new TypeError(
-      "unsupported transaction: must contain exactly one " +
-        "invokeHostFunction, bumpFootprintExpiration, or restoreFootprint " +
-        "operation",
-    );
-  }
-
-  if (simulation.results.length !== 1) {
-    throw new Error(`simulation results invalid: ${simulation.results}`);
-  }
-
-  const source = new Account(raw.source, `${parseInt(raw.sequence, 10) - 1}`);
-  const classicFeeNum = parseInt(raw.fee, 10) || 0;
-  const minResourceFeeNum = parseInt(simulation.minResourceFee, 10) || 0;
-  const txnBuilder = new TransactionBuilder(source, {
-    // automatically update the tx fee that will be set on the resulting tx to
-    // the sum of 'classic' fee provided from incoming tx.fee and minResourceFee
-    // provided by simulation.
-    //
-    // 'classic' tx fees are measured as the product of tx.fee * 'number of
-    // operations', In soroban contract tx, there can only be single operation
-    // in the tx, so can make simplification of total classic fees for the
-    // soroban transaction will be equal to incoming tx.fee + minResourceFee.
-    fee: (classicFeeNum + minResourceFeeNum).toString(),
-    memo: raw.memo,
-    networkPassphrase,
-    timebounds: raw.timeBounds,
-    ledgerbounds: raw.ledgerBounds,
-    minAccountSequence: raw.minAccountSequence,
-    minAccountSequenceAge: raw.minAccountSequenceAge,
-    minAccountSequenceLedgerGap: raw.minAccountSequenceLedgerGap,
-    extraSigners: raw.extraSigners,
-  });
-
-  switch (raw.operations[0].type) {
-    case "invokeHostFunction":
-      {
-        const invokeOp: Operation.InvokeHostFunction = raw.operations[0];
-        const existingAuth = invokeOp.auth ?? [];
-        txnBuilder.addOperation(
-          Operation.invokeHostFunction({
-            source: invokeOp.source,
-            func: invokeOp.func,
-            // apply the auth from the simulation
-            auth:
-              existingAuth.length > 0
-                ? existingAuth
-                : simulation.results[0].auth?.map((a) =>
-                    xdr.SorobanAuthorizationEntry.fromXDR(a, "base64"),
-                  ) ?? [],
-          }),
-        );
-      }
-      break;
-
-    case "bumpFootprintExpiration":
-      txnBuilder.addOperation(
-        Operation.bumpFootprintExpiration(raw.operations[0]),
-      );
-      break;
-
-    case "restoreFootprint":
-      txnBuilder.addOperation(Operation.restoreFootprint(raw.operations[0]));
-      break;
-    default:
-      throw new Error(`op not supported: ${raw.operations[0].type}`);
-  }
-
-  // apply the pre-built Soroban Tx Data from simulation onto the Tx
-  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-    simulation.transactionData,
-    "base64",
-  );
-  sorobanTxData.resources().footprint(footprint);
-  txnBuilder.setSorobanData(sorobanTxData);
-
-  return txnBuilder.build();
 };
