@@ -205,9 +205,9 @@ soroban contract invoke \
 7. In the `soroban-react-atomic-swap` directory run the front end with
    `yarn start` and navigate to http://localhost:9000/ in your browser.
 
-   ## Make a Swap
+## Make a Swap
 
-8. Connect your wallet to the Atomic Swap Dapp by clicking the "Connect Wallet"
+1. Connect your wallet to the Atomic Swap Dapp by clicking the "Connect Wallet"
    button. This will open a Freighter/Albedo/XBull window where you can select
    your account to connect to the Dapp.
 
