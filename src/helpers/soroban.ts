@@ -287,14 +287,6 @@ export const buildContractAuth = async (
           return Buffer.from(signature.data);
         };
 
-        // eslint-disable-next-line no-await-in-loop
-        // const authEntry = await authorizeInvocationCallback(
-        //   signerPubKey,
-        //   signingMethod as any as (input: Buffer) => Buffer, // TODO: types in stellar-base not correct?
-        //   networkPassphrase, // does this need to be passphrase hash?
-        //   expirationLedgerSeq,
-        //   invocation
-        // )
         const entryNonce = entry.credentials().address().nonce();
         const preimage = buildAuthEnvelope(
           networkPassphrase,
