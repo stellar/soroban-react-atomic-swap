@@ -115,8 +115,6 @@ video tutorial available in the release notes for the Token Minter Dapp,
 You can also use the Soroban CLI to deploy and mint tokens. To do this, follow
 the steps below:
 
-1. Deploy the Soroban token smart contracts.
-
 For this step you will need to clone and deploy the
 [Soroban token smart contracts](https://github.com/stellar/soroban-examples/blob/main/token/src/contract.rs).
 The Soroban tokens are custom tokens that will be swapped in the Atomic Swap
