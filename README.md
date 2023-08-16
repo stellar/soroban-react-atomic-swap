@@ -99,7 +99,23 @@ This will return a contract id that we will need to use later on.
 CCWXGZ6PCOORP7UKO2GVYS5PFYR4BND4XDYTQMO2B32SKXVX4DUKUUZ6
 ```
 
-5. Deploy the Soroban token smart contracts.
+## Token Setup
+
+There are two options for setting up tokens for the Atomic Swap Dapp:
+
+#### 1. Use the Token Minter Dapp
+
+The Token Minter Dapp provides an easy-to-use interface for minting tokens on
+Soroban. For step-by-step guidance on how to use the dapp, you can watch the
+video tutorial available in the release notes for the Token Minter Dapp,
+[here](https://github.com/stellar/soroban-react-mint-token/releases/tag/v1.0.0).
+
+#### 2. Use the Soroban CLI.
+
+You can also use the Soroban CLI to deploy and mint tokens. To do this, follow
+the steps below:
+
+1. Deploy the Soroban token smart contracts.
 
 For this step you will need to clone and deploy the
 [Soroban token smart contracts](https://github.com/stellar/soroban-examples/blob/main/token/src/contract.rs).
@@ -199,13 +215,20 @@ soroban contract invoke \
     --amount 1000000000
 ```
 
-6. [Enable and add Soroban Tokens](https://soroban.stellar.org/docs/reference/freighter#enable-soroban-tokens)
+## Run the Dapp
+
+Once you have deployed the Atomic Swap and Token contracts, you can run the dapp
+locally by following the steps below:
+
+1. [Enable and add Soroban Tokens](https://soroban.stellar.org/docs/reference/freighter#enable-soroban-tokens)
    in Freighter.
 
-7. In the `soroban-react-atomic-swap` directory run the front end with
+2. In the `soroban-react-atomic-swap` directory run the front end with
    `yarn start` and navigate to http://localhost:9000/ in your browser.
 
 ## Make a Swap
+
+Now that you have the Atomic Swap Dapp running locally, you can make a swap!
 
 1. Connect your wallet to the Atomic Swap Dapp by clicking the "Connect Wallet"
    button. This will open a Freighter/Albedo/XBull window where you can select
@@ -251,10 +274,19 @@ sign the transaction with user A's and user B's accounts.
 
 <img src = "public/img/8-sign-with-a.png" width="40%" height="40%"/>
 
-> Note: If you are using the address of the account that initiated the swap, you
-> may notice that there is no window to sign the transaction. This is because we
-> are using a previously authorized account to sign the transaction.. TODO: Add
-> more info about this.
+> **Note:** When using the address of the account that initiated the swap, you
+> may not see a window for signing the transaction. This is due to two options
+> for satisfying contract authentication when required by the contract:
+>
+> 1. The user can sign the authentication entry, or
+> 2. The user can use "invoker auth" by also being the user who signs the
+>    transaction itself.
+>
+> If the address required for signing contract authentication is also the source
+> account of the transaction in question, it implicitly allows the user to
+> bypass signing the authentication entry. In this case, the signature from the
+> transaction itself is used instead of the signature on the authentication
+> entry.
 
 8. Switch to user B's account in Freighter/Albedo/XBull and click the "Connect
    Wallet" button in the new window to connect user B's account to the Dapp.
