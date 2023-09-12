@@ -103,7 +103,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.14.1",
-    "soroban-client": "0.10.1",
+    "soroban-client": "0.11.2",
     "stellar-wallets-kit": "github:Creit-Tech/Stellar-Wallets-Kit"
   }
 }

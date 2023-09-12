@@ -174,10 +174,10 @@ export const Exchange = (props: ExchangeProps) => {
           );
 
           const finalTransaction = TransactionBuilder.cloneFrom(
-            preparedTransaction,
+            preparedTransaction.build(),
           )
             .setSorobanData(
-              new SorobanDataBuilder(txSim.transactionData)
+              new SorobanDataBuilder(txSim.transactionData.build())
                 .setFootprint(
                   originalFootprintXDR.readOnly(),
                   originalFootprintXDR.readWrite(),
@@ -199,7 +199,9 @@ export const Exchange = (props: ExchangeProps) => {
               server,
             );
 
-            setTxResultXDR(result);
+            if (result) {
+              setTxResultXDR(result.toXDR().toString());
+            }
             setIsSubmitting(false);
 
             setStepCount((stepCount + 1) as StepCount);
@@ -294,7 +296,10 @@ export const Exchange = (props: ExchangeProps) => {
               bc.postMessage({
                 type: ChannelMessageType.ContractID,
                 data: {
-                  baseTx: preparedTransaction.toEnvelope().toXDR("base64"),
+                  baseTx: preparedTransaction
+                    .build()
+                    .toEnvelope()
+                    .toXDR("base64"),
                   contractID,
                 },
               });

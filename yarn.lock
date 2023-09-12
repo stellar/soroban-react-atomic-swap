@@ -2487,6 +2487,11 @@ bignumber.js@^9.1.1:
   resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-9.1.1.tgz#c4df7dc496bd849d4c9464344c1aa74228b4dac6"
   integrity sha512-pHm4LsMJ6lzgNGVfZHjMoO8sdoRhOzOH4MLmY65Jg70bpxCKu5iOHNJyfF6OyvYw7t8Fpf35RuzUyqnQsj8Vig==
 
+bignumber.js@^9.1.2:
+  version "9.1.2"
+  resolved "https://registry.yarnpkg.com/bignumber.js/-/bignumber.js-9.1.2.tgz#b7c4242259c008903b13707983b5f4bbd31eda0c"
+  integrity sha512-2/mKyZH9K85bzOEfhXDBFZTGd1CTs+5IHpeFQo9luiBG7hghdC851Pj2WAhb6E3R6b9tZj/XKhbg4fum+Kepug==
+
 binary-extensions@^2.0.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/binary-extensions/-/binary-extensions-2.2.0.tgz#75f502eeaf9ffde42fc98829645be4ea76bd9e2d"
@@ -3501,11 +3506,6 @@ es-to-primitive@^1.2.1:
     is-date-object "^1.0.1"
     is-symbol "^1.0.2"
 
-es6-promise@^4.2.4:
-  version "4.2.8"
-  resolved "https://registry.yarnpkg.com/es6-promise/-/es6-promise-4.2.8.tgz#4eb21594c972bc40553d276e510539143db53e0a"
-  integrity sha512-HJDGx5daxeIvxdBxvG2cb9g4tEvwIk3i8+nhX0yGrYmZUzbkdg8QbDevheDB8gd0//uPj4c1EQua8Q+MViT0/w==
-
 escalade@^3.1.1:
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/escalade/-/escalade-3.1.1.tgz#d8cfdc7000965c5a0174b4a82eaa5c0552742e40"
@@ -3807,11 +3807,6 @@ events@^3.2.0, events@^3.3.0:
   version "3.3.0"
   resolved "https://registry.yarnpkg.com/events/-/events-3.3.0.tgz#31a95ad0a924e2d2c419a813aeb2c4e878ea7400"
   integrity sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==
-
-eventsource@^2.0.2:
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/eventsource/-/eventsource-2.0.2.tgz#76dfcc02930fb2ff339520b6d290da573a9e8508"
-  integrity sha512-IzUmBGPR3+oUG9dUeXynyNmf91/3zUSJg1lCktzKw47OXuhco54U3r9B7O4XX+Rb1Itm9OZ2b0RkTs10bICOxA==
 
 execa@^4.0.0:
   version "4.1.0"
@@ -6751,21 +6746,15 @@ sonic-boom@^2.2.1:
   dependencies:
     atomic-sleep "^1.0.0"
 
-soroban-client@0.10.1:
-  version "0.10.1"
-  resolved "https://registry.yarnpkg.com/soroban-client/-/soroban-client-0.10.1.tgz#b1c42d7e4629cad9e2cdfec1dbc692c87ec9209f"
-  integrity sha512-MAyDllFm7FETzwmdS+uGEp15TToo1aYtUxnVCs4dMl/f7P8Lb6whW664dYfyjvh8+mUOlVf+dlBY1qgJFlnDLQ==
+soroban-client@0.11.2:
+  version "0.11.2"
+  resolved "https://registry.yarnpkg.com/soroban-client/-/soroban-client-0.11.2.tgz#cb3b6e43b5a3f314b15f6f614da2504bfeb92efd"
+  integrity sha512-cc8d3YlaNzWR1prOggOlt2BmhWiHWgxebxavs7l2QOhzyG5qN2zQGnbCprVeMlOsY/tsI51liEEHAmtLROphqA==
   dependencies:
     axios "^1.4.0"
     bignumber.js "^9.1.1"
     buffer "^6.0.3"
-    detect-node "^2.0.4"
-    es6-promise "^4.2.4"
-    eventsource "^2.0.2"
-    lodash "^4.17.21"
-    randombytes "^2.1.0"
-    stellar-base "10.0.0-soroban.6"
-    toml "^3.0.0"
+    stellar-base "10.0.0-soroban.8"
     urijs "^1.19.1"
 
 sort-keys@^4.2.0:
@@ -6864,13 +6853,13 @@ statuses@2.0.1:
   resolved "https://registry.yarnpkg.com/statuses/-/statuses-1.5.0.tgz#161c7dac177659fd9811f43771fa99381478628c"
   integrity sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==
 
-stellar-base@10.0.0-soroban.6:
-  version "10.0.0-soroban.6"
-  resolved "https://registry.yarnpkg.com/stellar-base/-/stellar-base-10.0.0-soroban.6.tgz#b63e3d8e49866a0d1386b2f418c25cb0700f3457"
-  integrity sha512-672OQgps7BjyCvrQywOn7vc/NaaexsH2WrBl+EjlKMDsRp/na0fZcM7+053r9FYzK8nCcXgbOd5IXM6Hmb1pog==
+stellar-base@10.0.0-soroban.8:
+  version "10.0.0-soroban.8"
+  resolved "https://registry.yarnpkg.com/stellar-base/-/stellar-base-10.0.0-soroban.8.tgz#8c5671f9d5a183aeb3077746db56e65b0b5c05da"
+  integrity sha512-mtj+4EcCnp4ZyH2FzRl62/DAstTXOddHVRZdzFQ94WgyQz2yVNzt+ANDS1D/7ku4d2mIzoJIj9l0/H0A5nRgXQ==
   dependencies:
     base32.js "^0.1.0"
-    bignumber.js "^9.1.1"
+    bignumber.js "^9.1.2"
     buffer "^6.0.3"
     js-xdr "^3.0.0"
     sha.js "^2.3.6"
@@ -7172,11 +7161,6 @@ toidentifier@1.0.1:
   version "1.0.1"
   resolved "https://registry.yarnpkg.com/toidentifier/-/toidentifier-1.0.1.tgz#3be34321a88a820ed1bd80dfaa33e479fbb8dd35"
   integrity sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==
-
-toml@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/toml/-/toml-3.0.0.tgz#342160f1af1904ec9d204d03a5d61222d762c5ee"
-  integrity sha512-y/mWCZinnvxjTKYhJ+pYxwD0mRLVvOtdS2Awbgxln6iEnt4rk0yBxeSBHkGJcPucRiG0e55mwWp+g/05rsrd6w==
 
 tree-kill@^1.2.2:
   version "1.2.2"
