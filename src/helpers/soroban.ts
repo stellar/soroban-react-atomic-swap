@@ -15,13 +15,17 @@ import {
   scValToBigInt,
   ScInt,
   assembleTransaction,
-  authorizeInvocationCallback,
+  // authorizeInvocationCallback,
+  // nativeToScVal,
+  // Keypair,
+  // hash,
 } from "soroban-client";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
 import { NetworkDetails, signData } from "./network";
 import { ERRORS } from "./error";
+import { authorizeEntry } from "./sign-auth-entry";
 
 export const SendTxStatus: {
   [index: string]: SorobanRpc.SendTransactionStatus;
@@ -256,7 +260,7 @@ export const buildContractAuth = async (
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
 
-        const invocation = entry.rootInvocation();
+        // const invocation = entry.rootInvocation();
         const signingMethod = async (input: Buffer) => {
           // eslint-disable-next-line no-await-in-loop
           const signature = (await signData(
@@ -269,13 +273,34 @@ export const buildContractAuth = async (
 
         try {
           // eslint-disable-next-line no-await-in-loop
-          const authEntry = await authorizeInvocationCallback(
-            signerPubKey,
-            signingMethod as any,
-            networkPassphrase,
+          // const authEntry = await authorizeInvocationCallback(
+          //   signerPubKey,
+          //   signingMethod as any,
+          //   networkPassphrase,
+          //   expirationLedgerSeq,
+          //   invocation,
+          // );
+
+          // const entryNonce = entry.credentials().address().nonce();
+          // const preimage = buildAuthEnvelope(
+          //   networkPassphrase,
+          //   expirationLedgerSeq,
+          //   invocation,
+          //   entryNonce,
+          // );
+          // const input = hash(preimage.toXDR());
+          // eslint-disable-next-line no-await-in-loop
+          // const signature = await signingMethod(input);
+          // const authEntry = buildAuthEntry(preimage, signature, signerPubKey);
+
+          // eslint-disable-next-line no-await-in-loop
+          const authEntry = await authorizeEntry(
+            entry,
+            signingMethod,
             expirationLedgerSeq,
-            invocation,
+            networkPassphrase,
           );
+
           signedAuthEntries.push(authEntry);
         } catch (error) {
           console.log(error);
@@ -288,6 +313,68 @@ export const buildContractAuth = async (
 
   return signedAuthEntries;
 };
+
+// function buildAuthEnvelope(
+//   networkPassphrase: string,
+//   validUntil: any,
+//   invocation: any,
+//   nonce: any,
+// ) {
+//   const networkId = hash(Buffer.from(networkPassphrase));
+//   const envelope = new xdr.HashIdPreimageSorobanAuthorization({
+//     networkId,
+//     invocation,
+//     nonce,
+//     signatureExpirationLedger: validUntil,
+//   });
+
+//   return xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(envelope);
+// }
+
+// function buildAuthEntry(envelope: any, signature: any, publicKey: string) {
+//   // ensure this identity signed this envelope correctly
+//   if (
+//     !Keypair.fromPublicKey(publicKey).verify(hash(envelope.toXDR()), signature)
+//   ) {
+//     throw new Error(`signature does not match envelope or identity`);
+//   }
+
+//   if (
+//     envelope.switch() !== xdr.EnvelopeType.envelopeTypeSorobanAuthorization()
+//   ) {
+//     throw new TypeError(
+//       `expected sorobanAuthorization envelope, got ${envelope.switch().name}`,
+//     );
+//   }
+
+//   const auth = envelope.sorobanAuthorization();
+//   return new xdr.SorobanAuthorizationEntry({
+//     rootInvocation: auth.invocation(),
+//     credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
+//       new xdr.SorobanAddressCredentials({
+//         address: new Address(publicKey).toScAddress(),
+//         nonce: auth.nonce(),
+//         signatureExpirationLedger: auth.signatureExpirationLedger(),
+//         signatureArgs: [
+//           nativeToScVal(
+//             {
+//               public_key: StrKey.decodeEd25519PublicKey(publicKey),
+//               signature,
+//             },
+//             // force conversion of map keys to ScSymbol as this is expected by
+//             // custom [contracttype] Rust structures
+//             {
+//               type: {
+//                 public_key: ["symbol", null],
+//                 signature: ["symbol", null],
+//               },
+//             } as any,
+//           ),
+//         ],
+//       }),
+//     ),
+//   });
+// }
 
 export const signContractAuth = async (
   contractID: string,
