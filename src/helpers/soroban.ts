@@ -177,7 +177,7 @@ export const buildSwap = async (
   const built = tx.build();
   const sim = await server.simulateTransaction(built);
   const preparedTransaction = assembleTransaction(
-    tx.build(),
+    built,
     networkPassphrase,
     sim,
   );

@@ -173,9 +173,7 @@ export const Exchange = (props: ExchangeProps) => {
             "base64",
           );
 
-          const finalTransaction = TransactionBuilder.cloneFrom(
-            preparedTransaction.build(),
-          )
+          const finalTx = preparedTransaction
             .setSorobanData(
               new SorobanDataBuilder(txSim.transactionData.build())
                 .setFootprint(
@@ -187,7 +185,7 @@ export const Exchange = (props: ExchangeProps) => {
             .build();
 
           const _signedXdr = await signTx(
-            finalTransaction.toXDR(),
+            finalTx.toXDR(),
             props.pubKey,
             props.swkKit,
           );
