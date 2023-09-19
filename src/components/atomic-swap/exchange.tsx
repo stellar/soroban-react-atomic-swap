@@ -6,6 +6,7 @@ import {
   MemoType,
   Operation,
   SorobanDataBuilder,
+  SorobanRpc,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -160,7 +161,9 @@ export const Exchange = (props: ExchangeProps) => {
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
 
-          const txSim = await server.simulateTransaction(tx);
+          const txSim = (await server.simulateTransaction(
+            tx,
+          )) as SorobanRpc.SimulateTransactionSuccessResponse;
 
           const preparedTransaction = assembleTransaction(
             tx,

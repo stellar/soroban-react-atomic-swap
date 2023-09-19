@@ -15,10 +15,6 @@ import {
   scValToBigInt,
   ScInt,
   assembleTransaction,
-  // authorizeInvocationCallback,
-  // nativeToScVal,
-  // Keypair,
-  // hash,
 } from "soroban-client";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
@@ -94,7 +90,9 @@ export const simulateTx = async <ArgType>(
   tx: Transaction<Memo<MemoType>, Operation[]>,
   server: Server,
 ): Promise<ArgType> => {
-  const { result } = await server.simulateTransaction(tx);
+  const { result } = (await server.simulateTransaction(
+    tx,
+  )) as SorobanRpc.SimulateTransactionSuccessResponse;
 
   if (!result) {
     throw new Error("simulation returned no result");
@@ -179,7 +177,9 @@ export const buildSwap = async (
   }
 
   const built = tx.build();
-  const sim = await server.simulateTransaction(built);
+  const sim = (await server.simulateTransaction(
+    built,
+  )) as SorobanRpc.SimulateTransactionSuccessResponse;
   const preparedTransaction = assembleTransaction(
     built,
     networkPassphrase,
@@ -242,20 +242,21 @@ export const buildContractAuth = async (
             contract: new Address(contractID).toScAddress(),
             key: xdr.ScVal.scvLedgerKeyContractInstance(),
             durability: xdr.ContractDataDurability.persistent(),
-            bodyType: xdr.ContractEntryBodyType.dataEntry(),
           }),
         );
 
         // Fetch the current contract ledger seq
         // eslint-disable-next-line no-await-in-loop
-        const entryRes = await server.getLedgerEntries([key]);
+        const entryRes = await server.getLedgerEntries(key);
         if (entryRes.entries && entryRes.entries.length) {
           const parsed = xdr.LedgerEntryData.fromXDR(
             entryRes.entries[0].xdr,
             "base64",
           );
           // set auth entry to expire when contract data expires, but could any number of blocks in the future
-          expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
+          console.log(parsed);
+          // expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
+          expirationLedgerSeq = 49431 + 1000000;
         } else {
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
@@ -272,27 +273,6 @@ export const buildContractAuth = async (
         };
 
         try {
-          // eslint-disable-next-line no-await-in-loop
-          // const authEntry = await authorizeInvocationCallback(
-          //   signerPubKey,
-          //   signingMethod as any,
-          //   networkPassphrase,
-          //   expirationLedgerSeq,
-          //   invocation,
-          // );
-
-          // const entryNonce = entry.credentials().address().nonce();
-          // const preimage = buildAuthEnvelope(
-          //   networkPassphrase,
-          //   expirationLedgerSeq,
-          //   invocation,
-          //   entryNonce,
-          // );
-          // const input = hash(preimage.toXDR());
-          // eslint-disable-next-line no-await-in-loop
-          // const signature = await signingMethod(input);
-          // const authEntry = buildAuthEntry(preimage, signature, signerPubKey);
-
           // eslint-disable-next-line no-await-in-loop
           const authEntry = await authorizeEntry(
             entry,
@@ -313,68 +293,6 @@ export const buildContractAuth = async (
 
   return signedAuthEntries;
 };
-
-// function buildAuthEnvelope(
-//   networkPassphrase: string,
-//   validUntil: any,
-//   invocation: any,
-//   nonce: any,
-// ) {
-//   const networkId = hash(Buffer.from(networkPassphrase));
-//   const envelope = new xdr.HashIdPreimageSorobanAuthorization({
-//     networkId,
-//     invocation,
-//     nonce,
-//     signatureExpirationLedger: validUntil,
-//   });
-
-//   return xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(envelope);
-// }
-
-// function buildAuthEntry(envelope: any, signature: any, publicKey: string) {
-//   // ensure this identity signed this envelope correctly
-//   if (
-//     !Keypair.fromPublicKey(publicKey).verify(hash(envelope.toXDR()), signature)
-//   ) {
-//     throw new Error(`signature does not match envelope or identity`);
-//   }
-
-//   if (
-//     envelope.switch() !== xdr.EnvelopeType.envelopeTypeSorobanAuthorization()
-//   ) {
-//     throw new TypeError(
-//       `expected sorobanAuthorization envelope, got ${envelope.switch().name}`,
-//     );
-//   }
-
-//   const auth = envelope.sorobanAuthorization();
-//   return new xdr.SorobanAuthorizationEntry({
-//     rootInvocation: auth.invocation(),
-//     credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
-//       new xdr.SorobanAddressCredentials({
-//         address: new Address(publicKey).toScAddress(),
-//         nonce: auth.nonce(),
-//         signatureExpirationLedger: auth.signatureExpirationLedger(),
-//         signatureArgs: [
-//           nativeToScVal(
-//             {
-//               public_key: StrKey.decodeEd25519PublicKey(publicKey),
-//               signature,
-//             },
-//             // force conversion of map keys to ScSymbol as this is expected by
-//             // custom [contracttype] Rust structures
-//             {
-//               type: {
-//                 public_key: ["symbol", null],
-//                 signature: ["symbol", null],
-//               },
-//             } as any,
-//           ),
-//         ],
-//       }),
-//     ),
-//   });
-// }
 
 export const signContractAuth = async (
   contractID: string,
@@ -426,23 +344,23 @@ export const getArgsFromEnvelope = (
     throw new Error(ERRORS.BAD_ENVELOPE);
   }
 
-  const args = op.invokeContract();
-  const tokenA = StrKey.encodeContract(args[4].address().contractId());
-  const tokenB = StrKey.encodeContract(args[5].address().contractId());
+  const args = op.invokeContract().args();
+  const tokenA = StrKey.encodeContract(args[2].address().contractId());
+  const tokenB = StrKey.encodeContract(args[3].address().contractId());
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
-      args[2].address().accountId().ed25519(),
+      args[0].address().accountId().ed25519(),
     ),
     addressB: StrKey.encodeEd25519PublicKey(
-      args[3].address().accountId().ed25519(),
+      args[1].address().accountId().ed25519(),
     ),
     tokenA,
     tokenB,
-    amountA: valueToI128String(args[6]),
-    minBForA: valueToI128String(args[7]),
-    amountB: valueToI128String(args[8]),
-    minAForB: valueToI128String(args[9]),
+    amountA: valueToI128String(args[4]),
+    minBForA: valueToI128String(args[5]),
+    amountB: valueToI128String(args[6]),
+    minAForB: valueToI128String(args[7]),
   };
 };
 
