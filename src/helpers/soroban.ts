@@ -15,6 +15,7 @@ import {
   scValToBigInt,
   ScInt,
   assembleTransaction,
+  hash,
 } from "soroban-client";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
@@ -241,18 +242,20 @@ export const buildContractAuth = async (
           }),
         );
 
+        const expirationKey = xdr.LedgerKey.expiration(
+          new xdr.LedgerKeyExpiration({ keyHash: hash(key.toXDR()) }),
+        );
+
         // Fetch the current contract ledger seq
         // eslint-disable-next-line no-await-in-loop
-        const entryRes = await server.getLedgerEntries(key);
+        const entryRes = await server.getLedgerEntries(expirationKey);
         if (entryRes.entries && entryRes.entries.length) {
           const parsed = xdr.LedgerEntryData.fromXDR(
             entryRes.entries[0].xdr,
             "base64",
           );
           // set auth entry to expire when contract data expires, but could any number of blocks in the future
-          console.log(parsed);
-          // expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
-          expirationLedgerSeq = 81365 + 1000000;
+          expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
         } else {
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }

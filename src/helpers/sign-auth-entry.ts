@@ -37,8 +37,6 @@ export async function authorizeEntry(
     }),
   );
 
-  console.log(preimage.toXDR());
-  console.log(hash(preimage.toXDR()));
   const signature = await signer(preimage.toXDR());
   const publicKey = Address.fromScAddress(addrAuth.address()).toString();
 
@@ -63,6 +61,6 @@ export async function authorizeEntry(
     },
   );
 
-  addrAuth.signature(sigScVal);
+  addrAuth.signature(xdr.ScVal.scvVec([sigScVal]));
   return entry;
 }

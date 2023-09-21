@@ -205,7 +205,7 @@ export const Exchange = (props: ExchangeProps) => {
                 return;
               }
 
-              setTxResultXDR(result.toXDR().toString());
+              setTxResultXDR(result.toString());
               setStepCount((stepCount + 1) as StepCount);
             } catch (error) {
               console.log(error);
