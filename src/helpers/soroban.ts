@@ -91,15 +91,16 @@ export const simulateTx = async <ArgType>(
   tx: Transaction<Memo<MemoType>, Operation[]>,
   server: Server,
 ): Promise<ArgType> => {
-  const { result } = (await server.simulateTransaction(
-    tx,
-  )) as SorobanRpc.SimulateTransactionSuccessResponse;
+  const response = await server.simulateTransaction(tx);
 
-  if (!result) {
-    throw new Error("simulation returned no result");
+  if (
+    SorobanRpc.isSimulationSuccess(response) &&
+    response.result !== undefined
+  ) {
+    return scValToNative(response.result.retval);
   }
 
-  return scValToNative(result.retval);
+  throw new Error("simulation returned no result");
 };
 
 // Get the tokens decimals, decoded as a number
@@ -178,14 +179,16 @@ export const buildSwap = async (
   }
 
   const built = tx.build();
-  const sim = (await server.simulateTransaction(
-    built,
-  )) as SorobanRpc.SimulateTransactionSuccessResponse;
+  const sim = await server.simulateTransaction(built);
   const preparedTransaction = assembleTransaction(
     built,
     networkPassphrase,
     sim,
   );
+
+  if (!SorobanRpc.isSimulationSuccess(sim)) {
+    throw new Error(ERRORS.TX_SIM_FAILED);
+  }
 
   return {
     preparedTransaction,

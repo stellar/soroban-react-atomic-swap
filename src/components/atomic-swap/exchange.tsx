@@ -6,6 +6,7 @@ import {
   MemoType,
   Operation,
   SorobanDataBuilder,
+  SorobanRpc,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -163,7 +164,7 @@ export const Exchange = (props: ExchangeProps) => {
 
           const txSim = await server.simulateTransaction(tx);
 
-          if (!("transactionData" in txSim)) {
+          if (!SorobanRpc.isSimulationSuccess(txSim)) {
             props.setError(ERRORS.TX_SIM_FAILED);
             return;
           }
