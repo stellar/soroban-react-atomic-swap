@@ -188,11 +188,7 @@ export const buildSwap = async (
 
   return {
     preparedTransaction,
-    footprint: sim.transactionData
-      .build()
-      .resources()
-      .footprint()
-      .toXDR("base64"),
+    footprint: sim.transactionData.getFootprint(),
   };
 };
 
@@ -256,12 +252,11 @@ export const buildContractAuth = async (
           // set auth entry to expire when contract data expires, but could any number of blocks in the future
           console.log(parsed);
           // expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
-          expirationLedgerSeq = 49431 + 1000000;
+          expirationLedgerSeq = 81365 + 1000000;
         } else {
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
 
-        // const invocation = entry.rootInvocation();
         const signingMethod = async (input: Buffer) => {
           // eslint-disable-next-line no-await-in-loop
           const signature = (await signData(
@@ -392,9 +387,13 @@ export const submitTx = async (
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    if (txResponse.status !== SorobanRpc.GetTransactionStatus.FAILED) {
-      return txResponse.resultXdr;
+    if (txResponse.status === SorobanRpc.GetTransactionStatus.SUCCESS) {
+      return txResponse.resultXdr.toXDR("base64");
     }
+
+    throw new Error(
+      `Unabled to submit transaction, status: ${sendResponse.status}`,
+    );
   }
   return null;
 };

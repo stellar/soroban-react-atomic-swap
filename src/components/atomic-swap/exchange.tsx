@@ -6,7 +6,6 @@ import {
   MemoType,
   Operation,
   SorobanDataBuilder,
-  SorobanRpc,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -70,7 +69,9 @@ export const Exchange = (props: ExchangeProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
-  const [originalFootprint, setOriginalFootprint] = React.useState("");
+  const [originalFootprint, setOriginalFootprint] = React.useState(
+    null as xdr.LedgerFootprint | null,
+  );
   const [fee, setFee] = React.useState(BASE_FEE);
   const [memo, setMemo] = React.useState("");
 
@@ -153,7 +154,6 @@ export const Exchange = (props: ExchangeProps) => {
       case 6: {
         const submit = async () => {
           const server = getServer(props.networkDetails);
-
           setIsSubmitting(true);
 
           const tx = TransactionBuilder.fromXDR(
@@ -161,9 +161,12 @@ export const Exchange = (props: ExchangeProps) => {
             props.networkDetails.networkPassphrase,
           ) as Transaction<Memo<MemoType>, Operation[]>;
 
-          const txSim = (await server.simulateTransaction(
-            tx,
-          )) as SorobanRpc.SimulateTransactionSuccessResponse;
+          const txSim = await server.simulateTransaction(tx);
+
+          if (!("transactionData" in txSim)) {
+            props.setError(ERRORS.TX_SIM_FAILED);
+            return;
+          }
 
           const preparedTransaction = assembleTransaction(
             tx,
@@ -171,46 +174,47 @@ export const Exchange = (props: ExchangeProps) => {
             txSim,
           );
 
-          const originalFootprintXDR = xdr.LedgerFootprint.fromXDR(
-            originalFootprint,
-            "base64",
-          );
+          if (originalFootprint) {
+            const finalTx = preparedTransaction
+              .setSorobanData(
+                new SorobanDataBuilder(txSim.transactionData.build())
+                  .setFootprint(
+                    originalFootprint.readOnly(),
+                    originalFootprint.readWrite(),
+                  )
+                  .build(),
+              )
+              .build();
 
-          const finalTx = preparedTransaction
-            .setSorobanData(
-              new SorobanDataBuilder(txSim.transactionData.build())
-                .setFootprint(
-                  originalFootprintXDR.readOnly(),
-                  originalFootprintXDR.readWrite(),
-                )
-                .build(),
-            )
-            .build();
-
-          const _signedXdr = await signTx(
-            finalTx.toXDR(),
-            props.pubKey,
-            props.swkKit,
-          );
-
-          try {
-            const result = await submitTx(
-              _signedXdr,
-              props.networkDetails.networkPassphrase,
-              server,
+            const _signedXdr = await signTx(
+              finalTx.toXDR(),
+              props.pubKey,
+              props.swkKit,
             );
 
-            if (result) {
-              setTxResultXDR(result.toXDR().toString());
-            }
-            setIsSubmitting(false);
+            try {
+              const result = await submitTx(
+                _signedXdr,
+                props.networkDetails.networkPassphrase,
+                server,
+              );
 
-            setStepCount((stepCount + 1) as StepCount);
-          } catch (error) {
-            console.log(error);
-            setIsSubmitting(false);
-            props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+              setIsSubmitting(false);
+              if (!result) {
+                props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+                return;
+              }
+
+              setTxResultXDR(result.toXDR().toString());
+              setStepCount((stepCount + 1) as StepCount);
+            } catch (error) {
+              console.log(error);
+              setIsSubmitting(false);
+              props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+            }
+            return;
           }
+          props.setError(ERRORS.BAD_ENVELOPE);
         };
         return (
           <>

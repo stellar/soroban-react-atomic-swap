@@ -24,7 +24,6 @@ export async function authorizeEntry(
     return entry;
   }
 
-  /** @type {xdr.SorobanAddressCredentials} */
   const addrAuth = entry.credentials().address();
   addrAuth.signatureExpirationLedger(validUntilLedgerSeq);
 
@@ -38,6 +37,8 @@ export async function authorizeEntry(
     }),
   );
 
+  console.log(preimage.toXDR());
+  console.log(hash(preimage.toXDR()));
   const signature = await signer(preimage.toXDR());
   const publicKey = Address.fromScAddress(addrAuth.address()).toString();
 
