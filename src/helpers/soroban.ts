@@ -1,5 +1,4 @@
 import {
-  Account,
   Address,
   Contract,
   Memo,
@@ -16,15 +15,14 @@ import {
   scValToBigInt,
   ScInt,
   assembleTransaction,
-  Keypair,
   hash,
-  nativeToScVal,
 } from "soroban-client";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
 import { NetworkDetails, signData } from "./network";
 import { ERRORS } from "./error";
+import { authorizeEntry } from "./sign-auth-entry";
 
 export const SendTxStatus: {
   [index: string]: SorobanRpc.SendTransactionStatus;
@@ -33,14 +31,6 @@ export const SendTxStatus: {
   Duplicate: "DUPLICATE",
   Retry: "TRY_AGAIN_LATER",
   Error: "ERROR",
-};
-
-export const GetTxStatus: {
-  [index: string]: SorobanRpc.GetTransactionStatus;
-} = {
-  Success: "SUCCESS",
-  NotFound: "NOT_FOUND",
-  Failed: "FAILED",
 };
 
 export const BASE_FEE = "100";
@@ -101,22 +91,16 @@ export const simulateTx = async <ArgType>(
   tx: Transaction<Memo<MemoType>, Operation[]>,
   server: Server,
 ): Promise<ArgType> => {
-  const { results } = await server.simulateTransaction(tx);
+  const response = await server.simulateTransaction(tx);
 
-  if (!results || results.length !== 1) {
-    throw new Error("Invalid response from simulateTransaction");
+  if (
+    SorobanRpc.isSimulationSuccess(response) &&
+    response.result !== undefined
+  ) {
+    return scValToNative(response.result.retval);
   }
-  const result = results[0];
-  const scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
-  let convertedScVal: any;
-  try {
-    // handle a case where scValToNative doesn't properly handle scvString
-    convertedScVal = scVal.str().toString();
-    return convertedScVal;
-  } catch (e) {
-    console.log(e);
-  }
-  return scValToNative(scVal);
+
+  throw new Error("simulation returned no result");
 };
 
 // Get the tokens decimals, decoded as a number
@@ -200,16 +184,15 @@ export const buildSwap = async (
     built,
     networkPassphrase,
     sim,
-  ) as Transaction<Memo<MemoType>, Operation[]>;
-
-  const sorobanTxData = xdr.SorobanTransactionData.fromXDR(
-    sim.transactionData,
-    "base64",
   );
+
+  if (!SorobanRpc.isSimulationSuccess(sim)) {
+    throw new Error(ERRORS.TX_SIM_FAILED);
+  }
 
   return {
     preparedTransaction,
-    footprint: sorobanTxData.resources().footprint().toXDR("base64"),
+    footprint: sim.transactionData.getFootprint(),
   };
 };
 
@@ -259,24 +242,27 @@ export const buildContractAuth = async (
             contract: new Address(contractID).toScAddress(),
             key: xdr.ScVal.scvLedgerKeyContractInstance(),
             durability: xdr.ContractDataDurability.persistent(),
-            bodyType: xdr.ContractEntryBodyType.dataEntry(),
           }),
+        );
+
+        const expirationKey = xdr.LedgerKey.expiration(
+          new xdr.LedgerKeyExpiration({ keyHash: hash(key.toXDR()) }),
         );
 
         // Fetch the current contract ledger seq
         // eslint-disable-next-line no-await-in-loop
-        const entryRes = await server.getLedgerEntries([key]);
+        const entryRes = await server.getLedgerEntries(expirationKey);
         if (entryRes.entries && entryRes.entries.length) {
           const parsed = xdr.LedgerEntryData.fromXDR(
             entryRes.entries[0].xdr,
             "base64",
           );
-          expirationLedgerSeq = parsed.contractData().expirationLedgerSeq();
+          // set auth entry to expire when contract data expires, but could any number of blocks in the future
+          expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
         } else {
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
 
-        const invocation = entry.rootInvocation();
         const signingMethod = async (input: Buffer) => {
           // eslint-disable-next-line no-await-in-loop
           const signature = (await signData(
@@ -287,19 +273,19 @@ export const buildContractAuth = async (
           return Buffer.from(signature.data);
         };
 
-        const entryNonce = entry.credentials().address().nonce();
-        const preimage = buildAuthEnvelope(
-          networkPassphrase,
-          expirationLedgerSeq,
-          invocation,
-          entryNonce,
-        );
-        const input = hash(preimage.toXDR());
-        // eslint-disable-next-line no-await-in-loop
-        const signature = await signingMethod(input);
-        const authEntry = buildAuthEntry(preimage, signature, signerPubKey);
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const authEntry = await authorizeEntry(
+            entry,
+            signingMethod,
+            expirationLedgerSeq,
+            networkPassphrase,
+          );
 
-        signedAuthEntries.push(authEntry);
+          signedAuthEntries.push(authEntry);
+        } catch (error) {
+          console.log(error);
+        }
       } else {
         signedAuthEntries.push(entry);
       }
@@ -309,68 +295,6 @@ export const buildContractAuth = async (
   return signedAuthEntries;
 };
 
-function buildAuthEnvelope(
-  networkPassphrase: string,
-  validUntil: any,
-  invocation: any,
-  nonce: any,
-) {
-  const networkId = hash(Buffer.from(networkPassphrase));
-  const envelope = new xdr.HashIdPreimageSorobanAuthorization({
-    networkId,
-    invocation,
-    nonce,
-    signatureExpirationLedger: validUntil,
-  });
-
-  return xdr.HashIdPreimage.envelopeTypeSorobanAuthorization(envelope);
-}
-
-function buildAuthEntry(envelope: any, signature: any, publicKey: string) {
-  // ensure this identity signed this envelope correctly
-  if (
-    !Keypair.fromPublicKey(publicKey).verify(hash(envelope.toXDR()), signature)
-  ) {
-    throw new Error(`signature does not match envelope or identity`);
-  }
-
-  if (
-    envelope.switch() !== xdr.EnvelopeType.envelopeTypeSorobanAuthorization()
-  ) {
-    throw new TypeError(
-      `expected sorobanAuthorization envelope, got ${envelope.switch().name}`,
-    );
-  }
-
-  const auth = envelope.sorobanAuthorization();
-  return new xdr.SorobanAuthorizationEntry({
-    rootInvocation: auth.invocation(),
-    credentials: xdr.SorobanCredentials.sorobanCredentialsAddress(
-      new xdr.SorobanAddressCredentials({
-        address: new Address(publicKey).toScAddress(),
-        nonce: auth.nonce(),
-        signatureExpirationLedger: auth.signatureExpirationLedger(),
-        signatureArgs: [
-          nativeToScVal(
-            {
-              public_key: StrKey.decodeEd25519PublicKey(publicKey),
-              signature,
-            },
-            // force conversion of map keys to ScSymbol as this is expected by
-            // custom [contracttype] Rust structures
-            {
-              type: {
-                public_key: ["symbol", null],
-                signature: ["symbol", null],
-              },
-            } as any,
-          ),
-        ],
-      }),
-    ),
-  });
-}
-
 export const signContractAuth = async (
   contractID: string,
   signerPubKey: string,
@@ -379,17 +303,7 @@ export const signContractAuth = async (
   networkPassphrase: string,
   kit: StellarWalletsKit,
 ) => {
-  // rebuild tx and attach signed auth
-  const source = new Account(tx.source, `${parseInt(tx.sequence, 10) - 1}`);
-  const txnBuilder = new TransactionBuilder(source, {
-    fee: tx.fee,
-    networkPassphrase,
-    timebounds: tx.timeBounds,
-    ledgerbounds: tx.ledgerBounds,
-    minAccountSequence: tx.minAccountSequence,
-    minAccountSequenceAge: tx.minAccountSequenceAge,
-    minAccountSequenceLedgerGap: tx.minAccountSequenceLedgerGap,
-  });
+  const builder = TransactionBuilder.cloneFrom(tx);
 
   // Soroban transaction can only have 1 operation
   const rawInvokeHostFunctionOp = tx
@@ -405,14 +319,14 @@ export const signContractAuth = async (
     kit,
   );
 
-  txnBuilder.addOperation(
+  builder.clearOperations().addOperation(
     Operation.invokeHostFunction({
       ...rawInvokeHostFunctionOp,
       auth: signedAuth,
     }),
   );
 
-  return txnBuilder.build();
+  return builder.build();
 };
 
 export const getArgsFromEnvelope = (
@@ -431,23 +345,23 @@ export const getArgsFromEnvelope = (
     throw new Error(ERRORS.BAD_ENVELOPE);
   }
 
-  const args = op.invokeContract();
-  const tokenA = StrKey.encodeContract(args[4].address().contractId());
-  const tokenB = StrKey.encodeContract(args[5].address().contractId());
+  const args = op.invokeContract().args();
+  const tokenA = StrKey.encodeContract(args[2].address().contractId());
+  const tokenB = StrKey.encodeContract(args[3].address().contractId());
 
   return {
     addressA: StrKey.encodeEd25519PublicKey(
-      args[2].address().accountId().ed25519(),
+      args[0].address().accountId().ed25519(),
     ),
     addressB: StrKey.encodeEd25519PublicKey(
-      args[3].address().accountId().ed25519(),
+      args[1].address().accountId().ed25519(),
     ),
     tokenA,
     tokenB,
-    amountA: valueToI128String(args[6]),
-    minBForA: valueToI128String(args[7]),
-    amountB: valueToI128String(args[8]),
-    minAForB: valueToI128String(args[9]),
+    amountA: valueToI128String(args[4]),
+    minBForA: valueToI128String(args[5]),
+    amountB: valueToI128String(args[6]),
+    minAForB: valueToI128String(args[7]),
   };
 };
 
@@ -470,7 +384,7 @@ export const submitTx = async (
     let txResponse = await server.getTransaction(sendResponse.hash);
 
     // Poll this until the status is not "NOT_FOUND"
-    while (txResponse.status === GetTxStatus.NotFound) {
+    while (txResponse.status === SorobanRpc.GetTransactionStatus.NOT_FOUND) {
       // See if the transaction is complete
       // eslint-disable-next-line no-await-in-loop
       txResponse = await server.getTransaction(sendResponse.hash);
@@ -479,11 +393,13 @@ export const submitTx = async (
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    return txResponse.resultXdr!;
-    // eslint-disable-next-line no-else-return
-  } else {
+    if (txResponse.status === SorobanRpc.GetTransactionStatus.SUCCESS) {
+      return txResponse.resultXdr.toXDR("base64");
+    }
+
     throw new Error(
       `Unabled to submit transaction, status: ${sendResponse.status}`,
     );
   }
+  return null;
 };

@@ -4,6 +4,7 @@ export const ERRORS = {
   FREIGHTER_NOT_AVAILABLE: "Please install Freighter to connect your wallet",
   UNABLE_TO_SUBMIT_TX: "Unable to submit transaction",
   UNABLE_TO_SIGN_TX: "Unable to sign transaction",
+  TX_SIM_FAILED: "Unable to simulate transaction",
   WALLET_CONNECTION_REJECTED: "Wallet connection rejected",
   BAD_ENVELOPE: "Unable to unpack envelope",
   CANNOT_FETCH_LEDGER_ENTRY: "Unable to fetch ledger entry",

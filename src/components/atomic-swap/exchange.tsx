@@ -6,6 +6,7 @@ import {
   MemoType,
   Operation,
   SorobanDataBuilder,
+  SorobanRpc,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -69,7 +70,9 @@ export const Exchange = (props: ExchangeProps) => {
   const [amountB, setAmountB] = React.useState("");
   const [minAmountB, setMinAmountB] = React.useState("");
   const [swapperBAddress, setSwapperBAddress] = React.useState("");
-  const [originalFootprint, setOriginalFootprint] = React.useState("");
+  const [originalFootprint, setOriginalFootprint] = React.useState(
+    null as xdr.LedgerFootprint | null,
+  );
   const [fee, setFee] = React.useState(BASE_FEE);
   const [memo, setMemo] = React.useState("");
 
@@ -152,7 +155,6 @@ export const Exchange = (props: ExchangeProps) => {
       case 6: {
         const submit = async () => {
           const server = getServer(props.networkDetails);
-
           setIsSubmitting(true);
 
           const tx = TransactionBuilder.fromXDR(
@@ -162,52 +164,58 @@ export const Exchange = (props: ExchangeProps) => {
 
           const txSim = await server.simulateTransaction(tx);
 
+          if (!SorobanRpc.isSimulationSuccess(txSim)) {
+            props.setError(ERRORS.TX_SIM_FAILED);
+            return;
+          }
+
           const preparedTransaction = assembleTransaction(
             tx,
             props.networkDetails.networkPassphrase,
             txSim,
           );
 
-          const originalFootprintXDR = xdr.LedgerFootprint.fromXDR(
-            originalFootprint,
-            "base64",
-          );
+          if (originalFootprint) {
+            const finalTx = preparedTransaction
+              .setSorobanData(
+                new SorobanDataBuilder(txSim.transactionData.build())
+                  .setFootprint(
+                    originalFootprint.readOnly(),
+                    originalFootprint.readWrite(),
+                  )
+                  .build(),
+              )
+              .build();
 
-          const finalTransaction = TransactionBuilder.cloneFrom(
-            preparedTransaction,
-          )
-            .setSorobanData(
-              new SorobanDataBuilder(txSim.transactionData)
-                .setFootprint(
-                  originalFootprintXDR.readOnly(),
-                  originalFootprintXDR.readWrite(),
-                )
-                .build(),
-            )
-            .build();
-
-          const _signedXdr = await signTx(
-            finalTransaction.toXDR(),
-            props.pubKey,
-            props.swkKit,
-          );
-
-          try {
-            const result = await submitTx(
-              _signedXdr,
-              props.networkDetails.networkPassphrase,
-              server,
+            const _signedXdr = await signTx(
+              finalTx.toXDR(),
+              props.pubKey,
+              props.swkKit,
             );
 
-            setTxResultXDR(result);
-            setIsSubmitting(false);
+            try {
+              const result = await submitTx(
+                _signedXdr,
+                props.networkDetails.networkPassphrase,
+                server,
+              );
 
-            setStepCount((stepCount + 1) as StepCount);
-          } catch (error) {
-            console.log(error);
-            setIsSubmitting(false);
-            props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+              setIsSubmitting(false);
+              if (!result) {
+                props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+                return;
+              }
+
+              setTxResultXDR(result.toString());
+              setStepCount((stepCount + 1) as StepCount);
+            } catch (error) {
+              console.log(error);
+              setIsSubmitting(false);
+              props.setError(ERRORS.UNABLE_TO_SUBMIT_TX);
+            }
+            return;
           }
+          props.setError(ERRORS.BAD_ENVELOPE);
         };
         return (
           <>
@@ -294,7 +302,10 @@ export const Exchange = (props: ExchangeProps) => {
               bc.postMessage({
                 type: ChannelMessageType.ContractID,
                 data: {
-                  baseTx: preparedTransaction.toEnvelope().toXDR("base64"),
+                  baseTx: preparedTransaction
+                    .build()
+                    .toEnvelope()
+                    .toXDR("base64"),
                   contractID,
                 },
               });

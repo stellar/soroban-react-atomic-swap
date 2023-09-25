@@ -57,6 +57,7 @@ export const SwapperB = (props: SwapperBProps) => {
       signedTx,
       props.networkDetails.networkPassphrase,
     ) as Transaction<Memo<MemoType>, Operation[]>;
+    console.log(tx);
 
     const auth = await signContractAuth(
       contractID,
@@ -66,6 +67,7 @@ export const SwapperB = (props: SwapperBProps) => {
       props.networkDetails.networkPassphrase,
       props.swkKit,
     );
+    console.log(auth);
     return auth.toEnvelope().toXDR("base64");
   };
 
