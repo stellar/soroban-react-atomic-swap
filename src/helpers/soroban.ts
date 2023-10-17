@@ -17,7 +17,6 @@ import {
   assembleTransaction,
   hash,
 } from "soroban-client";
-import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
 import { NetworkDetails, signData } from "./network";
@@ -37,40 +36,6 @@ export const BASE_FEE = "100";
 
 export const RPC_URLS: { [key: string]: string } = {
   FUTURENET: "https://rpc-futurenet.stellar.org:443",
-};
-
-// Given a display value for a token and a number of decimals, return the corresponding BigNumber
-export const parseTokenAmount = (value: string, decimals: number) => {
-  const comps = value.split(".");
-
-  let whole = comps[0];
-  let fraction = comps[1];
-  if (!whole) {
-    whole = "0";
-  }
-  if (!fraction) {
-    fraction = "0";
-  }
-
-  // Trim trailing zeros
-  while (fraction[fraction.length - 1] === "0") {
-    fraction = fraction.substring(0, fraction.length - 1);
-  }
-
-  // If decimals is 0, we have an empty string for fraction
-  if (fraction === "") {
-    fraction = "0";
-  }
-
-  // Fully pad the string with zeros to get to value
-  while (fraction.length < decimals) {
-    fraction += "0";
-  }
-
-  const wholeValue = new BigNumber(whole);
-  const fractionValue = new BigNumber(fraction);
-
-  return wholeValue.shiftedBy(decimals).plus(fractionValue);
 };
 
 export const accountToScVal = (account: string) =>
