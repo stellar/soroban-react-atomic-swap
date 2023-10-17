@@ -7,6 +7,7 @@ import {
   Memo,
   MemoType,
   Operation,
+  Soroban,
 } from "soroban-client";
 import {
   WalletNetwork,
@@ -26,7 +27,6 @@ import {
   BASE_FEE,
 } from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
-import { formatTokenAmount } from "../../helpers/format";
 
 type StepCount = 1 | 2 | 3;
 
@@ -100,19 +100,19 @@ export const SwapperB = (props: SwapperBProps) => {
           );
           const formattedArgs = {
             ...args,
-            amountA: formatTokenAmount(
+            amountA: Soroban.formatTokenAmount(
               new BigNumber(args.amountA),
               props.decimals,
             ),
-            amountB: formatTokenAmount(
+            amountB: Soroban.formatTokenAmount(
               new BigNumber(args.amountB),
               props.decimals,
             ),
-            minAForB: formatTokenAmount(
+            minAForB: Soroban.formatTokenAmount(
               new BigNumber(args.minAForB),
               props.decimals,
             ),
-            minBForA: formatTokenAmount(
+            minBForA: Soroban.formatTokenAmount(
               new BigNumber(args.minBForA),
               props.decimals,
             ),

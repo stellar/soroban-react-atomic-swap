@@ -7,6 +7,7 @@ import {
   Operation,
   SorobanDataBuilder,
   SorobanRpc,
+  Soroban,
   Transaction,
   TransactionBuilder,
   xdr,
@@ -37,7 +38,6 @@ import {
   getTxBuilder,
   buildSwap,
   getTokenDecimals,
-  parseTokenAmount,
 } from "../../helpers/soroban";
 import { ERRORS } from "../../helpers/error";
 
@@ -264,8 +264,11 @@ export const Exchange = (props: ExchangeProps) => {
 
           const tokenA = {
             id: tokenAAddress,
-            amount: parseTokenAmount(amountA, props.tokenADecimals).toString(),
-            minAmount: parseTokenAmount(
+            amount: Soroban.parseTokenAmount(
+              amountA,
+              props.tokenADecimals,
+            ).toString(),
+            minAmount: Soroban.parseTokenAmount(
               minAmountA,
               props.tokenADecimals,
             ).toString(),
@@ -273,8 +276,11 @@ export const Exchange = (props: ExchangeProps) => {
 
           const tokenB = {
             id: tokenBAddress,
-            amount: parseTokenAmount(amountB, props.tokenBDecimals).toString(),
-            minAmount: parseTokenAmount(
+            amount: Soroban.parseTokenAmount(
+              amountB,
+              props.tokenBDecimals,
+            ).toString(),
+            minAmount: Soroban.parseTokenAmount(
               minAmountB,
               props.tokenBDecimals,
             ).toString(),

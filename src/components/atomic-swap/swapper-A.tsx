@@ -6,6 +6,7 @@ import {
   Operation,
   Transaction,
   TransactionBuilder,
+  Soroban,
 } from "soroban-client";
 import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
@@ -23,7 +24,6 @@ import {
 } from "../../helpers/soroban";
 import { NetworkDetails } from "../../helpers/network";
 import { ERRORS } from "../../helpers/error";
-import { formatTokenAmount } from "../../helpers/format";
 
 type StepCount = 1 | 2;
 
@@ -91,19 +91,19 @@ export const SwapperA = (props: SwapperAProps) => {
         );
         const formattedArgs = {
           ...args,
-          amountA: formatTokenAmount(
+          amountA: Soroban.formatTokenAmount(
             new BigNumber(args.amountA),
             props.decimals,
           ),
-          amountB: formatTokenAmount(
+          amountB: Soroban.formatTokenAmount(
             new BigNumber(args.amountB),
             props.decimals,
           ),
-          minAForB: formatTokenAmount(
+          minAForB: Soroban.formatTokenAmount(
             new BigNumber(args.minAForB),
             props.decimals,
           ),
-          minBForA: formatTokenAmount(
+          minBForA: Soroban.formatTokenAmount(
             new BigNumber(args.minBForA),
             props.decimals,
           ),
