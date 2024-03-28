@@ -7,7 +7,7 @@ import {
   Memo,
   MemoType,
   Operation,
-} from "soroban-client";
+} from "@stellar/stellar-sdk";
 import {
   WalletNetwork,
   WalletType,

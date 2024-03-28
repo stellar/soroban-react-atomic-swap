@@ -1,6 +1,5 @@
 import React, { ChangeEvent } from "react";
 import {
-  assembleTransaction,
   BASE_FEE,
   Memo,
   MemoType,
@@ -10,7 +9,7 @@ import {
   Transaction,
   TransactionBuilder,
   xdr,
-} from "soroban-client";
+} from "@stellar/stellar-sdk";
 import {
   Button,
   Card,
@@ -169,7 +168,7 @@ export const Exchange = (props: ExchangeProps) => {
             return;
           }
 
-          const preparedTransaction = assembleTransaction(
+          const preparedTransaction = SorobanRpc.assembleTransaction(
             tx,
             props.networkDetails.networkPassphrase,
             txSim,
@@ -288,7 +287,6 @@ export const Exchange = (props: ExchangeProps) => {
             swapperBAddress,
             memo,
             server,
-            props.networkDetails.networkPassphrase,
             txBuilder,
           );
           setOriginalFootprint(footprint);

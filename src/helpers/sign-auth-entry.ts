@@ -5,7 +5,7 @@ import {
   nativeToScVal,
   Keypair,
   hash,
-} from "soroban-client";
+} from "@stellar/stellar-sdk";
 
 // This can be replaced with the same helper in the sdk when it lands
 // https://github.com/stellar/js-stellar-base/pull/678

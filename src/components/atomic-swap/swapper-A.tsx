@@ -6,7 +6,7 @@ import {
   Operation,
   Transaction,
   TransactionBuilder,
-} from "soroban-client";
+} from "@stellar/stellar-sdk";
 import { Button, Heading, Select, Profile } from "@stellar/design-system";
 import {
   WalletNetwork,

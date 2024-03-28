@@ -5,7 +5,6 @@ import {
   MemoType,
   Operation,
   scValToNative,
-  Server,
   SorobanRpc,
   StrKey,
   TimeoutInfinite,
@@ -14,9 +13,11 @@ import {
   xdr,
   scValToBigInt,
   ScInt,
-  assembleTransaction,
-  hash,
-} from "soroban-client";
+  // authorizeInvocationCallback,
+  // nativeToScVal,
+  // Keypair,
+  // hash,
+} from "@stellar/stellar-sdk";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
 
@@ -25,7 +26,7 @@ import { ERRORS } from "./error";
 import { authorizeEntry } from "./sign-auth-entry";
 
 export const SendTxStatus: {
-  [index: string]: SorobanRpc.SendTransactionStatus;
+  [index: string]: SorobanRpc.Api.SendTransactionStatus;
 } = {
   Pending: "PENDING",
   Duplicate: "DUPLICATE",
@@ -81,7 +82,7 @@ export const valueToI128String = (value: xdr.ScVal) =>
 
 // Get a server configfured for a specific network
 export const getServer = (networkDetails: NetworkDetails) =>
-  new Server(RPC_URLS[networkDetails.network], {
+  new SorobanRpc.Server(RPC_URLS[networkDetails.network], {
     allowHttp: networkDetails.networkUrl.startsWith("http://"),
   });
 
@@ -89,12 +90,12 @@ export const getServer = (networkDetails: NetworkDetails) =>
 //  Used in getTokenSymbol, getTokenName, and getTokenDecimals
 export const simulateTx = async <ArgType>(
   tx: Transaction<Memo<MemoType>, Operation[]>,
-  server: Server,
+  server: SorobanRpc.Server,
 ): Promise<ArgType> => {
   const response = await server.simulateTransaction(tx);
 
   if (
-    SorobanRpc.isSimulationSuccess(response) &&
+    SorobanRpc.Api.isSimulationSuccess(response) &&
     response.result !== undefined
   ) {
     return scValToNative(response.result.retval);
@@ -107,7 +108,7 @@ export const simulateTx = async <ArgType>(
 export const getTokenDecimals = async (
   tokenId: string,
   txBuilder: TransactionBuilder,
-  server: Server,
+  server: SorobanRpc.Server,
 ) => {
   const contract = new Contract(tokenId);
   const tx = txBuilder
@@ -123,7 +124,7 @@ export const getTokenDecimals = async (
 export const getTxBuilder = async (
   pubKey: string,
   fee: string,
-  server: Server,
+  server: SorobanRpc.Server,
   networkPassphrase: string,
 ) => {
   const source = await server.getAccount(pubKey);
@@ -148,8 +149,7 @@ export const buildSwap = async (
   swapperAPubKey: string,
   swapperBPubKey: string,
   memo: string,
-  server: Server,
-  networkPassphrase: string,
+  server: SorobanRpc.Server,
   txBuilder: TransactionBuilder,
 ) => {
   const swapContract = new Contract(contractID);
@@ -179,14 +179,12 @@ export const buildSwap = async (
   }
 
   const built = tx.build();
-  const sim = await server.simulateTransaction(built);
-  const preparedTransaction = assembleTransaction(
+  const sim = (await server.simulateTransaction(
     built,
-    networkPassphrase,
-    sim,
-  );
+  )) as SorobanRpc.Api.SimulateTransactionSuccessResponse;
+  const preparedTransaction = SorobanRpc.assembleTransaction(built, sim);
 
-  if (!SorobanRpc.isSimulationSuccess(sim)) {
+  if (!SorobanRpc.Api.isSimulationSuccess(sim)) {
     throw new Error(ERRORS.TX_SIM_FAILED);
   }
 
@@ -200,7 +198,7 @@ export const buildSwap = async (
 export const getTokenSymbol = async (
   tokenId: string,
   txBuilder: TransactionBuilder,
-  server: Server,
+  server: SorobanRpc.Server,
 ) => {
   const contract = new Contract(tokenId);
 
@@ -218,7 +216,7 @@ export const buildContractAuth = async (
   signerPubKey: string,
   networkPassphrase: string,
   contractID: string,
-  server: Server,
+  server: SorobanRpc.Server,
   kit: StellarWalletsKit,
 ) => {
   const signedAuthEntries = [];
@@ -253,12 +251,8 @@ export const buildContractAuth = async (
         // eslint-disable-next-line no-await-in-loop
         const entryRes = await server.getLedgerEntries(expirationKey);
         if (entryRes.entries && entryRes.entries.length) {
-          const parsed = xdr.LedgerEntryData.fromXDR(
-            entryRes.entries[0].xdr,
-            "base64",
-          );
           // set auth entry to expire when contract data expires, but could any number of blocks in the future
-          expirationLedgerSeq = parsed.expiration().expirationLedgerSeq();
+          expirationLedgerSeq = entryRes.entries[0].liveUntilLedgerSeq || 0;
         } else {
           throw new Error(ERRORS.CANNOT_FETCH_LEDGER_ENTRY);
         }
@@ -299,7 +293,7 @@ export const signContractAuth = async (
   contractID: string,
   signerPubKey: string,
   tx: Transaction,
-  server: Server,
+  server: SorobanRpc.Server,
   networkPassphrase: string,
   kit: StellarWalletsKit,
 ) => {
@@ -370,13 +364,13 @@ export const getArgsFromEnvelope = (
 export const submitTx = async (
   signedXDR: string,
   networkPassphrase: string,
-  server: Server,
+  server: SorobanRpc.Server,
 ) => {
   const tx = TransactionBuilder.fromXDR(signedXDR, networkPassphrase);
 
   const sendResponse = await server.sendTransaction(tx);
 
-  if (sendResponse.errorResultXdr) {
+  if (sendResponse.errorResult) {
     throw new Error(ERRORS.UNABLE_TO_SUBMIT_TX);
   }
 
@@ -384,7 +378,9 @@ export const submitTx = async (
     let txResponse = await server.getTransaction(sendResponse.hash);
 
     // Poll this until the status is not "NOT_FOUND"
-    while (txResponse.status === SorobanRpc.GetTransactionStatus.NOT_FOUND) {
+    while (
+      txResponse.status === SorobanRpc.Api.GetTransactionStatus.NOT_FOUND
+    ) {
       // See if the transaction is complete
       // eslint-disable-next-line no-await-in-loop
       txResponse = await server.getTransaction(sendResponse.hash);
@@ -393,7 +389,7 @@ export const submitTx = async (
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    if (txResponse.status === SorobanRpc.GetTransactionStatus.SUCCESS) {
+    if (txResponse.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
       return txResponse.resultXdr.toXDR("base64");
     }
 
