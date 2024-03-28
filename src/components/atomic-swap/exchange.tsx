@@ -163,16 +163,12 @@ export const Exchange = (props: ExchangeProps) => {
 
           const txSim = await server.simulateTransaction(tx);
 
-          if (!SorobanRpc.isSimulationSuccess(txSim)) {
+          if (!SorobanRpc.Api.isSimulationSuccess(txSim)) {
             props.setError(ERRORS.TX_SIM_FAILED);
             return;
           }
 
-          const preparedTransaction = SorobanRpc.assembleTransaction(
-            tx,
-            props.networkDetails.networkPassphrase,
-            txSim,
-          );
+          const preparedTransaction = SorobanRpc.assembleTransaction(tx, txSim);
 
           if (originalFootprint) {
             const finalTx = preparedTransaction
