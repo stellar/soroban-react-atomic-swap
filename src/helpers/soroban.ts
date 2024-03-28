@@ -243,13 +243,9 @@ export const buildContractAuth = async (
           }),
         );
 
-        const expirationKey = xdr.LedgerKey.expiration(
-          new xdr.LedgerKeyExpiration({ keyHash: hash(key.toXDR()) }),
-        );
-
         // Fetch the current contract ledger seq
         // eslint-disable-next-line no-await-in-loop
-        const entryRes = await server.getLedgerEntries(expirationKey);
+        const entryRes = await server.getLedgerEntries(key);
         if (entryRes.entries && entryRes.entries.length) {
           // set auth entry to expire when contract data expires, but could any number of blocks in the future
           expirationLedgerSeq = entryRes.entries[0].liveUntilLedgerSeq || 0;
