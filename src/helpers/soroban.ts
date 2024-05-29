@@ -13,10 +13,6 @@ import {
   xdr,
   scValToBigInt,
   ScInt,
-  // authorizeInvocationCallback,
-  // nativeToScVal,
-  // Keypair,
-  // hash,
 } from "@stellar/stellar-sdk";
 import BigNumber from "bignumber.js";
 import { StellarWalletsKit } from "stellar-wallets-kit";
