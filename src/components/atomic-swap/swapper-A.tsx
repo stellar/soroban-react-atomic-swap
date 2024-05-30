@@ -62,7 +62,7 @@ export const SwapperA = (props: SwapperAProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          await props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          await props.swkKit.setNetwork(WalletNetwork.TESTNET);
 
           props.setPubKey(publicKey);
           setStepCount((stepCount + 1) as StepCount);

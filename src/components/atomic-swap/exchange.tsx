@@ -105,7 +105,7 @@ export const Exchange = (props: ExchangeProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          props.swkKit.setNetwork(WalletNetwork.TESTNET);
           props.setPubKey(publicKey);
 
           setStepCount((stepCount + 1) as StepCount);
@@ -182,11 +182,17 @@ export const Exchange = (props: ExchangeProps) => {
               )
               .build();
 
-            const _signedXdr = await signTx(
-              finalTx.toXDR(),
-              props.pubKey,
-              props.swkKit,
-            );
+            let _signedXdr = "";
+
+            try {
+              _signedXdr = await signTx(
+                finalTx.toXDR(),
+                props.pubKey,
+                props.swkKit,
+              );
+            } catch (e) {
+              console.error(e);
+            }
 
             try {
               const result = await submitTx(

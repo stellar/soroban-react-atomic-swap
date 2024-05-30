@@ -14,9 +14,10 @@ The Atomic Swap DApp relies on the following dependencies:
 
 - Freighter wallet(v5.0 or newer): https://www.freighter.app/
 
-You need access to/funds from the following contracts - Atomic Swap:
-https://github.com/stellar/soroban-examples/tree/main/atomic_swap Token:
-https://github.com/stellar/soroban-examples/tree/main/token
+You need access to/funds from the following contracts:
+
+Atomic Swap: https://github.com/stellar/soroban-examples/tree/main/atomic_swap
+Token: https://github.com/stellar/soroban-examples/tree/main/token
 
 This demo involves a minimum of 2 parties and 2 different tokens to swap between
 the parties.
@@ -88,8 +89,8 @@ below:
 soroban contract deploy \
     --wasm target/wasm32-unknown-unknown/release/soroban_atomic_swap_contract.wasm \
     --source <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022'
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015'
 ```
 
 This will return a contract id that we will need to use later on.
@@ -138,8 +139,8 @@ follow the steps below:
 soroban contract deploy \
     --wasm target/wasm32-unknown-unknown/release/soroban_token_contract.wasm \
     --source <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022'
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015'
 ```
 
 This will return a contract id that we will need to use later on.
@@ -153,8 +154,8 @@ CCZZ763JDLSHEXUFUIHIKOVAAKYU2CUXSUH5MP4MH2HDZYGOYMM3RDD5
 soroban contract invoke \
     --id <TOKEN_A_CONTRACT_ID> \
     --source-account <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022' \
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015' \
     -- initialize \
     --admin <ADMIN_PUBLIC_KEY> \
     --decimal 7 \
@@ -169,8 +170,8 @@ following command:
 soroban contract invoke \
     --id <TOKEN_A_CONTRACT_ID> \
     --source-account <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022' \
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015' \
     -- mint \
     --to <USER_A_OR_B_PUBLIC_KEY> \
     --amount 1000000000
@@ -191,8 +192,8 @@ _See the example below for initializing and minting the second token contract_
 soroban contract invoke \
     --id <TOKEN_B_CONTRACT_ID> \
     --source-account <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022' \
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015' \
     -- initialize \
     --admin <ADMIN_PUBLIC_KEY> \
     --decimal 7 \
@@ -206,8 +207,8 @@ soroban contract invoke \
 soroban contract invoke \
     --id <TOKEN_B_CONTRACT_ID> \
     --source-account <ADMIN_ACCOUNT_SECRET_KEY> \
-    --rpc-url https://rpc-futurenet.stellar.org:443 \
-    --network-passphrase 'Test SDF Future Network ; October 2022' \
+    --rpc-url https://soroban-testnet.stellar.org \
+    --network-passphrase 'Test SDF Network ; September 2015' \
     -- mint \
     --to <USER_A_OR_B_PUBLIC_KEY> \
     --amount 1000000000
