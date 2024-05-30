@@ -87,7 +87,7 @@ export const SwapperB = (props: SwapperBProps) => {
           props.swkKit.setWallet(option.type);
           const publicKey = await props.swkKit.getPublicKey();
 
-          props.swkKit.setNetwork(WalletNetwork.FUTURENET);
+          props.swkKit.setNetwork(WalletNetwork.TESTNET);
 
           const server = getServer(props.networkDetails);
           const tx = TransactionBuilder.fromXDR(

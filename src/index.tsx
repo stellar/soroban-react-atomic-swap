@@ -12,7 +12,7 @@ import { Exchange } from "./components/atomic-swap/exchange";
 import { SwapperA } from "./components/atomic-swap/swapper-A";
 import { SwapperB } from "./components/atomic-swap/swapper-B";
 
-import { FUTURENET_DETAILS } from "./helpers/network";
+import { TESTNET_DETAILS } from "./helpers/network";
 
 import "@stellar/design-system/build/styles.min.css";
 import "./index.scss";
@@ -25,8 +25,8 @@ const App = (props: AppProps) => {
   // This is only needed when this component is consumed by other components that display a different header
   const hasHeader = props.hasHeader === undefined ? true : props.hasHeader;
 
-  // Default to Futurenet network, only supported network for now
-  const [selectedNetwork] = React.useState(FUTURENET_DETAILS);
+  // Default to Testnet network
+  const [selectedNetwork] = React.useState(TESTNET_DETAILS);
 
   // Initial state, empty states for token/transaction details
   const [activePubKey, setActivePubKey] = React.useState("");

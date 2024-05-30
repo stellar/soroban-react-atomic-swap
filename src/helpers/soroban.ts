@@ -33,7 +33,7 @@ export const SendTxStatus: {
 export const BASE_FEE = "100";
 
 export const RPC_URLS: { [key: string]: string } = {
-  FUTURENET: "https://rpc-futurenet.stellar.org:443",
+  TESTNET: "https://soroban-testnet.stellar.org",
 };
 
 // Given a display value for a token and a number of decimals, return the corresponding BigNumber
